@@ -1,0 +1,63 @@
+services:
+  # Service ที่ 1: Go Fiber API ของคุณ
+  go-api:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile
+    image: go-fiber-api:latest
+    container_name: go_api_service
+    restart: unless-stopped
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    environment:                     # <-- แก้จาก env_file มาเป็น environment
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - API_PORT=${API_PORT}
+    depends_on:
+      - postgres-db
+    networks:
+      - app-network
+
+  # Service ที่ 2: PostgreSQL Database
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: go-postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+
+  # Service ที่ 3: PgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: go-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres-db
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+    external: true
+    name: ecommerce-backend_postgres_data
+
+networks:
+  app-network:
+    external: true
+    name: ecommerce-backend_app-network

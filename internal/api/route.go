@@ -1,0 +1,25 @@
+package api
+
+import (
+	"github.com/NOOKX2/e-commerce-backend/configs"
+	"github.com/NOOKX2/e-commerce-backend/internal/api/middleware"
+	"github.com/NOOKX2/e-commerce-backend/internal/handler"
+	"github.com/gofiber/fiber/v2"
+)
+
+func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, config *configs.Config) {
+	v1 := app.Group("/api/v1")
+
+	v1.Get("/", func (c *fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{"message":"ok"})
+	})
+
+	auth := v1.Group("/auth")
+
+	auth.Post("/register", userHandler.Register)
+	auth.Post("/login", userHandler.Login)
+
+	authRequired := v1.Group("/", middleware.Authentication(config))
+
+	authRequired.Get("/profile", userHandler.GetUserProfile)
+}
