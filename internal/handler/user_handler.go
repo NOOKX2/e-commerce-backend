@@ -20,7 +20,7 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	req := new(request.RegisterRequest)
 	if err := c.BodyParser(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request" + err.Error(),
+			"error": "invalid request " + err.Error(),
 		})
 	}
 
@@ -86,7 +86,7 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 		ID:          user.ID,
 		Email:       user.Email,
 		DisplayName: user.DisplayName,
-		Role:        user.Role,
+		Role:        string(user.Role),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{

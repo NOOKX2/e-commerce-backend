@@ -24,6 +24,7 @@ func Authentication(config *configs.Config) fiber.Handler {
 			return []byte(config.JWTSecret), nil
 
 		})
+
 		if err != nil || !token.Valid {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid or expired JWT" + err.Error(),
@@ -38,7 +39,7 @@ func Authentication(config *configs.Config) fiber.Handler {
 		}
 
 		c.Locals("userID", claims["user_id"])
-		c.Locals("userRole", claims["role"])
+		c.Locals("userRole", claims["user_role"])
 
 		return c.Next()
 	}

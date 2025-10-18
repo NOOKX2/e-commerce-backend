@@ -32,9 +32,12 @@ func main() {
 	userService := service.NewUserService(userRepository, config)
 	userHandler := handler.NewUserHandler(userService)
 
+	sellerHandler := handler.NewSellerHandler()
+	adminHandler := handler.NewAdminHandler()
+
 	app := fiber.New()
 
-	api.SetupRoutes(app, userHandler, config)
+	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, config)
 
 	log.Printf("Server is starting on port %s", config.ApiPort)
 	err = app.Listen(":" + config.ApiPort)
