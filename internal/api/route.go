@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler *handler.SellerHandler, adminHandler *handler.AdminHandler, config *configs.Config) {
+func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler *handler.SellerHandler, adminHandler *handler.AdminHandler, productHandler *handler.ProductHandler, config *configs.Config) {
 	v1 := app.Group("/api/v1")
 
 	v1.Get("/", func(c *fiber.Ctx) error {
@@ -22,6 +22,11 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	authRequired := v1.Group("/", middleware.Authentication(config))
 
 	authRequired.Get("/profile", userHandler.GetUserProfile)
+	authRequired.Post("/products", productHandler.AddProduct)
+	authRequired.Get("/products", productHandler.GetAllProduct)
+	authRequired.Get("/products/:id", productHandler.GetProductByID)
+	authRequired.Put("/products/:id", productHandler.UpdateProduct)
+	authRequired.Delete("/products/:id", productHandler.DeleteProduct)
 
 	admin := v1.Group("/admin", middleware.Authentication(config), middleware.RoleRequired("admin"))
 	admin.Get("/dashboard", adminHandler.GetDashboard)

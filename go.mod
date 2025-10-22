@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/jinzhu/copier v0.4.0
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.43.0
 	gorm.io/driver/postgres v1.6.0
