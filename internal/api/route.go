@@ -19,14 +19,17 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	auth.Post("/register", userHandler.Register)
 	auth.Post("/login", userHandler.Login)
 
-	authRequired := v1.Group("/", middleware.Authentication(config))
+	v1.Get("/products", productHandler.GetAllProduct)
+	v1.Get("/products/:id", productHandler.GetProductByID)
 
+	authRequired := v1.Group("/", middleware.Authentication(config))
 	authRequired.Get("/profile", userHandler.GetUserProfile)
 	authRequired.Post("/products", productHandler.AddProduct)
-	authRequired.Get("/products", productHandler.GetAllProduct)
-	authRequired.Get("/products/:id", productHandler.GetProductByID)
+	
 	authRequired.Put("/products/:id", productHandler.UpdateProduct)
 	authRequired.Delete("/products/:id", productHandler.DeleteProduct)
+
+	
 
 	admin := v1.Group("/admin", middleware.Authentication(config), middleware.RoleRequired("admin"))
 	admin.Get("/dashboard", adminHandler.GetDashboard)

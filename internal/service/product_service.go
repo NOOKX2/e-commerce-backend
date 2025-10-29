@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/domain"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
@@ -20,10 +21,10 @@ type CreateProductInput struct {
 
 type ProductServiceInterface interface {
 	AddProduct(ctx context.Context, input CreateProductInput) (*domain.Product, error)
-	GetAllProduct() ([]domain.Product, error)
+	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]domain.Product, error)
 	GetProductByID(id uint) (*domain.Product, error)
 	UpdateProduct(productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*domain.Product, error)
-	DeleteProduct(productID uint, sellerID uint)(error)
+	DeleteProduct(productID uint, sellerID uint) error
 }
 
 type ProductService struct {
@@ -47,7 +48,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
-		SellerID: input.SellerID,
+		SellerID:    input.SellerID,
 	}
 
 	err := s.repo.Create(ctx, product)
@@ -55,8 +56,20 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	return product, err
 }
 
-func (s *ProductService) GetAllProduct() ([]domain.Product, error) {
-	products, err := s.repo.GetAllProduct()
+func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr string) ([]domain.Product, error) {
+	page, err := strconv.ParseUint(pageStr, 10, 64)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.ParseUint(limitStr, 10, 64)
+	if err != nil || limit < 1 {
+		limit = 12
+	}
+
+	offset := (page - 1) * limit
+
+	products, err := s.repo.GetAllProduct(category, price, sort, uint(limit), uint(offset))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +105,6 @@ func (s *ProductService) getProductForUpdate(productID uint, sellerID uint) (*do
 	return existingProduct, nil
 }
 
-
 func (s *ProductService) UpdateProduct(productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*domain.Product, error) {
 	existingProduct, err := s.getProductForUpdate(productID, sellerID)
 
@@ -100,8 +112,8 @@ func (s *ProductService) UpdateProduct(productID uint, sellerID uint, productReq
 		return nil, err
 	}
 
-	if err := copier.Copy(existingProduct, productReq); err != nil  {
-		return nil, errors.New("Error update data"+ err.Error())
+	if err := copier.Copy(existingProduct, productReq); err != nil {
+		return nil, errors.New("Error update data" + err.Error())
 	}
 
 	if err := s.repo.UpdateProduct(existingProduct); err != nil {
@@ -111,7 +123,7 @@ func (s *ProductService) UpdateProduct(productID uint, sellerID uint, productReq
 	return existingProduct, nil
 }
 
-func (s *ProductService) DeleteProduct(productID uint, sellerID uint) error{
+func (s *ProductService) DeleteProduct(productID uint, sellerID uint) error {
 	product, err := s.repo.GetProductByID(productID)
 
 	if err != nil {
@@ -124,7 +136,7 @@ func (s *ProductService) DeleteProduct(productID uint, sellerID uint) error{
 
 	if err := s.repo.DeleteProduct(productID); err != nil {
 		return fmt.Errorf("failed to delete product: %w", err)
-	} 
+	}
 
 	return nil
 }

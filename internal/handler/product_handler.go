@@ -6,6 +6,7 @@ import (
 
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
+	"github.com/NOOKX2/e-commerce-backend/pkg/response"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -56,16 +57,25 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 }
 
 func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
-	products, err := h.ProductService.GetAllProduct()
+	categoryQuery := c.Query("category")
+	priceQuery := c.Query("price")
+	sortQuery := c.Query("sort")
+	pageQuery := c.Query("page", "1")
+	limitQuery := c.Query("limit", "12")
+
+	products, err := h.ProductService.GetAllProduct(categoryQuery, priceQuery, sortQuery, pageQuery, limitQuery)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error loading products" + err.Error(),
 		})
 	}
 
+	productResponses := response.ToProductResponses(products)
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message":  "Get all products successful",
-		"products": products,
+		"success": "true",
+		"message": "Get all products successful",
+		"data":    productResponses,
 	})
 }
 
@@ -94,8 +104,9 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
 		"message": "Get product by ID successfully",
-		"product": product,
+		"data":    product,
 	})
 }
 
@@ -120,7 +131,6 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	
 	updatedProduct, err := h.ProductService.UpdateProduct(productID, sellerID, productReq)
 
 	if err != nil {
@@ -168,6 +178,6 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message" : "Delete product successfully.",
+		"message": "Delete product successfully.",
 	})
 }
