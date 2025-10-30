@@ -14,7 +14,8 @@ services:
 
 
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
     networks:
       - app-network
 
