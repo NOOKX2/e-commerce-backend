@@ -17,6 +17,7 @@ type CreateProductInput struct {
 	Price       float64
 	Description string
 	SellerID    uint
+	ImageUrl    string
 }
 
 type ProductServiceInterface interface {
@@ -49,6 +50,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		Price:       input.Price,
 		Description: input.Description,
 		SellerID:    input.SellerID,
+		ImageURL: input.ImageUrl,
 	}
 
 	err := s.repo.Create(ctx, product)

@@ -35,12 +35,12 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 	}
 
 	sellerID := uint(sellerIDFloat)
-
 	productInput := service.CreateProductInput{
 		Name:        req.Name,
 		Price:       req.Price,
 		Description: req.Description,
 		SellerID:    sellerID,
+		ImageUrl:    req.ImageUrl,
 	}
 
 	product, err := h.ProductService.AddProduct(ctx, productInput)

@@ -2,8 +2,9 @@ POST http://localhost:8080/api/v1/products
 Content-Type: application/json
 
 {
-	"name": "Product ",
-    "description": "Product  Description",
-    "price" : 100
+	"name": "IPhone 17 Pro Max",
+    "description": "Latest IPhone Now",
+    "price" : 1000,
+    "image_url": "https://pub-5592941e133640c5ba14efd027808849.r2.dev/iphone-17-pro-max.webp"
 
 }
