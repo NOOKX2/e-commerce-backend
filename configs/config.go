@@ -13,16 +13,22 @@ type Config struct {
 }
 
 func LoadConfig(path string) (config *Config, err error) {
+	viper.BindEnv("DB_HOST")
+	viper.BindEnv("DB_PORT")
+	viper.BindEnv("DB_USER")
+	viper.BindEnv("DB_PASSWORD")
+	viper.BindEnv("DB_NAME")
+	viper.BindEnv("API_PORT")
+	viper.BindEnv("JWT_SECRET_KEY")
+
+
 	viper.AddConfigPath(path)
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 
 	viper.AutomaticEnv()
 
-	err = viper.ReadInConfig()
-	if err != nil {
-		return
-	}
+	viper.ReadInConfig()
 
 	err = viper.Unmarshal(&config)
 	return

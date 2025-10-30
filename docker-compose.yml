@@ -9,13 +9,10 @@ services:
     restart: unless-stopped
     ports:
       - "${API_PORT}:${API_PORT}"
-    environment:                     # <-- แก้จาก env_file มาเป็น environment
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - API_PORT=${API_PORT}
+    env_file:
+      - .env
+
+
     depends_on:
       - postgres-db
     networks:
@@ -36,6 +33,12 @@ services:
       - "5432:5432"
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   # Service ที่ 3: PgAdmin
   pgadmin:
@@ -48,16 +51,17 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
     networks:
       - app-network
 
 volumes:
-  postgres_data:
-    external: true
-    name: ecommerce-backend_postgres_data
+  postgres_data: {}
+  pgadmin_data: {}
 
 networks:
-  app-network:
-    external: true
-    name: ecommerce-backend_app-network
+  app-network:  {}
