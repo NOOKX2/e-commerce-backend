@@ -13,6 +13,7 @@ type ProductRepositoryInterface interface {
 	Create(ctx context.Context, product *domain.Product) error
 	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]domain.Product, error)
 	GetProductByID(id uint) (*domain.Product, error)
+	GetProductBySlug(ctx context.Context,slug string) (*domain.Product, error)
 	UpdateProduct(product *domain.Product) error
 	DeleteProduct(id uint) error
 }
@@ -83,6 +84,16 @@ func (r *productRepository) GetProductByID(id uint) (*domain.Product, error) {
 
 		return nil, result.Error
 	}
+	return &product, nil
+}
+
+func (r *productRepository) GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+	var product domain.Product
+	err := r.db.WithContext(ctx).Where("slug = ?", slug).First(&product).Error
+	if err != nil {
+		return nil, err
+	}
+	
 	return &product, nil
 }
 

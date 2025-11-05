@@ -9,7 +9,9 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/internal/domain"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
+	"github.com/NOOKX2/e-commerce-backend/pkg/utils"
 	"github.com/jinzhu/copier"
+	"gorm.io/gorm"
 )
 
 type CreateProductInput struct {
@@ -36,6 +38,24 @@ func NewProductService(repo repository.ProductRepositoryInterface) ProductServic
 	return &ProductService{repo: repo}
 }
 
+func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string) (string, error) {
+	finalSlug := baseSlug
+	for i := 1; ; i++ {
+		_, err := s.repo.GetProductBySlug(ctx, finalSlug)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				break
+				
+			}
+			return "", fmt.Errorf("failed to check for existing slug: %w", err)
+
+		}
+		finalSlug = fmt.Sprintf("%s-%d", baseSlug, i)
+
+	}
+return finalSlug, nil
+}
+
 func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*domain.Product, error) {
 	if input.Name == "" {
 		return nil, errors.New("Product name cannot be empty")
@@ -45,15 +65,22 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		return nil, errors.New("Product price must be a pisitive value")
 	}
 
+	baseSlug := utils.Slugify(input.Name)
+	uniqueSlug, err := s.generateUniqueSlug(ctx, baseSlug)
+	if err != nil {
+		return nil, err
+	}
+
 	product := &domain.Product{
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
 		SellerID:    input.SellerID,
-		ImageURL: input.ImageUrl,
+		ImageURL:    input.ImageUrl,
+		Slug: uniqueSlug,
 	}
 
-	err := s.repo.Create(ctx, product)
+	err = s.repo.Create(ctx, product)
 
 	return product, err
 }
