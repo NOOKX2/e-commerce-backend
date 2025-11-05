@@ -1,0 +1,23 @@
+# Dockerfile.dev
+# This Dockerfile is ONLY for the development environment, with hot-reloading.
+
+# 1. Start with an image that INCLUDES the full Go toolchain.
+FROM golang:1.25-alpine
+
+# 2. Set the working directory where our code will live.
+WORKDIR /app
+
+# 3. Install the Air tool inside the container.
+#    This command is run once and cached by Docker.
+RUN go install github.com/cosmtrek/air@v1.49.0
+
+# 4. Copy dependency files to leverage layer caching.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 5. Copy the Air configuration file.
+COPY .air.toml .
+
+# 6. Set the default command to run Air.
+#    Air will then be responsible for compiling and running our Go app.
+CMD ["air"]

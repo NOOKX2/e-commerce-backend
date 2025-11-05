@@ -1,0 +1,36 @@
+# docker-compose.override.yml
+#
+# This file provides development-specific overrides for the main docker-compose.yml.
+# Docker Compose automatically reads and merges this file when you run `docker-compose up`.
+#
+# Our Goal: Enable hot-reloading for the Go backend service.
+
+
+services:
+  # We are only overriding the 'go-api' service.
+  # The 'postgres-db' and 'pgadmin' services will use their configuration
+  # from the base docker-compose.yml file without any changes.
+  go-api:
+    # 1. Build configuration override:
+    build:
+      context: .
+      # Point to the Dockerfile specifically created for development.
+      # This Dockerfile includes the 'Air' tool for live reloading.
+      dockerfile: Dockerfile.dev
+
+    # 2. Volume mapping (Bind Mount):
+    # This is the most crucial part for hot-reloading.
+    # It mounts the current project directory on your host machine (.)
+    # into the /app directory inside the container.
+    #
+    # When you save a .go file on your Mac, 'Air' (inside the container)
+    # sees the change immediately and triggers a rebuild and restart.
+    volumes:
+      - .:/app
+
+    # 3. (Optional) Expose a debugging port:
+    # This maps port 2345 on your host to port 2345 in the container.
+    # It allows you to attach a remote debugger (like the one in VS Code or GoLand)
+    # to your running Go application for step-by-step debugging.
+    ports:
+      - "2345:2345"

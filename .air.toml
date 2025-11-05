@@ -1,0 +1,35 @@
+# .air.toml
+# Main configuration file for Air.
+# Defines how to build and run the application.
+
+root = "."
+tmp_dir = "tmp" # Directory for temporary build files.
+
+[build]
+# Command to build the Go application.
+# IMPORTANT: Adjust the path './cmd/api' if your main.go is elsewhere.
+cmd = "go build -o ./tmp/main ./cmd/api"
+# The binary file to run after building.
+bin = "tmp/main"
+
+# Files/extensions to watch for changes.
+include_ext = ["go", "tpl", "tmpl", "html"]
+# Directories/files to ignore.
+exclude_dir = ["assets", "tmp", "vendor"]
+# Delay in milliseconds before triggering a rebuild.
+delay = 1000 # 1 second
+
+[log]
+# Show time in logs.
+time = true
+
+[color]
+# Customize colors for different parts of the output.
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Delete the tmp directory on exit.
+clean_on_exit = true

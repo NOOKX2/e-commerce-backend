@@ -32,7 +32,6 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 
 func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]domain.Product, error) {
 	products := make([]domain.Product, 0)
-
 	query := r.db.Model(&domain.Product{})
 
 	if category != "" {
@@ -70,7 +69,6 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 	if err := query.Find(&products).Error; err != nil {
 		return nil, err
 	}
-
 	return products, nil
 }
 

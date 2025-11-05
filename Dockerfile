@@ -6,12 +6,15 @@ WORKDIR /app
 # 1. Copy go.mod และ go.sum ก่อน
 #    เพื่อใช้ประโยชน์จาก Docker layer caching
 #    ถ้าไฟล์ 2 นี้ไม่เปลี่ยน Docker จะไม่ดาวน์โหลด dependencies ใหม่
+
 COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
 # 2. Copy source code ทั้งหมด
 COPY . .
+
+
 
 # 3. Build แอปพลิเคชัน
 #    - CGO_ENABLED=0 เพื่อสร้าง static binary ที่ไม่ขึ้นกับ C libraries
