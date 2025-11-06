@@ -5,6 +5,7 @@ type ProductRequest struct {
 	Price       float64 `json:"price"`
 	Description string  `json:"description"`
 	ImageUrl    string  `json:"image_url"`
+	Category    string  `json:"category"`
 }
 
 type UpdateProductRequest struct {

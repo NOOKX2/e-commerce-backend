@@ -41,6 +41,7 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 		Description: req.Description,
 		SellerID:    sellerID,
 		ImageUrl:    req.ImageUrl,
+		Category: req.Category,
 	}
 
 	product, err := h.ProductService.AddProduct(ctx, productInput)

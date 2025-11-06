@@ -20,6 +20,7 @@ type CreateProductInput struct {
 	Description string
 	SellerID    uint
 	ImageUrl    string
+	Category    string
 }
 
 type ProductServiceInterface interface {
@@ -45,7 +46,7 @@ func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				break
-				
+
 			}
 			return "", fmt.Errorf("failed to check for existing slug: %w", err)
 
@@ -53,7 +54,7 @@ func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string
 		finalSlug = fmt.Sprintf("%s-%d", baseSlug, i)
 
 	}
-return finalSlug, nil
+	return finalSlug, nil
 }
 
 func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*domain.Product, error) {
@@ -77,7 +78,8 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		Description: input.Description,
 		SellerID:    input.SellerID,
 		ImageURL:    input.ImageUrl,
-		Slug: uniqueSlug,
+		Category:    input.Category,
+		Slug:        uniqueSlug,
 	}
 
 	err = s.repo.Create(ctx, product)
