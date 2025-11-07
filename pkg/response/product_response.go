@@ -7,16 +7,16 @@ import (
 )
 
 type ProductResponse struct {
-	ID          uint      `json:"id"` 
+	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Price       float64   `json:"price"`
 	Category    string    `json:"category"`
-	ImageURL    string    `json:"imageUrl"`  
-	SellerID    uint      `json:"sellerId"`  
-	CreatedAt   time.Time `json:"createdAt"` 
-	UpdatedAt   time.Time `json:"updatedAt"` 
-	Slug        string    `json:"slug"`      
+	ImageURL    string    `json:"imageUrl"`
+	SellerID    uint      `json:"sellerId"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+	Slug        string    `json:"slug"`
 }
 
 func ToProductResponse(product domain.Product) ProductResponse {
@@ -30,6 +30,7 @@ func ToProductResponse(product domain.Product) ProductResponse {
 		SellerID:    product.SellerID,
 		CreatedAt:   product.CreatedAt,
 		UpdatedAt:   product.UpdatedAt,
+		Slug:        product.Slug,
 	}
 }
 

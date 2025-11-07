@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
 	"github.com/NOOKX2/e-commerce-backend/pkg/response"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 type ProductHandler struct {
@@ -41,7 +43,7 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 		Description: req.Description,
 		SellerID:    sellerID,
 		ImageUrl:    req.ImageUrl,
-		Category: req.Category,
+		Category:    req.Category,
 	}
 
 	product, err := h.ProductService.AddProduct(ctx, productInput)
@@ -81,6 +83,7 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 }
 
 func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
+
 	idStr := c.Params("id")
 	id64, err := strconv.ParseUint(idStr, 10, 64)
 
@@ -103,11 +106,42 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 			"error": "Product ID not found",
 		})
 	}
-
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "Get product by ID successfully",
 		"data":    product,
+	})
+}
+
+func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": "false",
+			"message": "Slug parameter is required",
+		})
+	}
+
+	product, err := h.ProductService.GetProductBySlug(c.UserContext(), slug)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": "false",
+				"message": "Product not found",
+			})
+		}
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": "false",
+			"message": err.Error(),
+		})
+	}
+
+	productResponse := response.ToProductResponse(*product)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": "true",
+		"message": "Get product by slug successfully",
+		"data": productResponse,
 	})
 }
 

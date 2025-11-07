@@ -27,6 +27,7 @@ type ProductServiceInterface interface {
 	AddProduct(ctx context.Context, input CreateProductInput) (*domain.Product, error)
 	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]domain.Product, error)
 	GetProductByID(id uint) (*domain.Product, error)
+	GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error)
 	UpdateProduct(productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*domain.Product, error)
 	DeleteProduct(productID uint, sellerID uint) error
 }
@@ -111,6 +112,16 @@ func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr 
 
 func (s *ProductService) GetProductByID(id uint) (*domain.Product, error) {
 	product, err := s.repo.GetProductByID(id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return product, nil
+}
+
+func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+	product, err := s.repo.GetProductBySlug(ctx, slug)
 
 	if err != nil {
 		return nil, err

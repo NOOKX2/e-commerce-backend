@@ -20,7 +20,9 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	auth.Post("/login", userHandler.Login)
 
 	v1.Get("/products", productHandler.GetAllProduct)
-	v1.Get("/products/:id", productHandler.GetProductByID)
+	v1.Get("/products/id/:id:", productHandler.GetProductByID)
+	v1.Get("/products/:slug", productHandler.GetProductBySlug)
+
 
 	authRequired := v1.Group("/", middleware.Authentication(config))
 	authRequired.Get("/profile", userHandler.GetUserProfile)
