@@ -1,14 +1,14 @@
 package response
 
 type RegisterResponse struct {
-	ID          uint   `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name"`
+	ID    uint   `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
 }
 
 type ProfileResponse struct {
-	ID          uint   `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"display_name"`
-	Role        string `json:"role"`
+	ID    uint   `json:"id"`
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	Role  string `json:"role"`
 }

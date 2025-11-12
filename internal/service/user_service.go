@@ -10,7 +10,7 @@ import (
 )
 
 type UserServiceInterface interface {
-	Register(email, password, displayName string) (*domain.User, error)
+	Register(email, password,name string) (*domain.User, error)
 	Login(email, password string) (string, error)
 	GetUserByID(id uint) (*domain.User, error)
 }
@@ -27,7 +27,7 @@ func NewUserService(repo repository.UserRepositoryInterface, cfg *configs.Config
 	}
 }
 
-func (s *UserService) Register(email, password, displayName string) (*domain.User, error) {
+func (s *UserService) Register(email, password,name string) (*domain.User, error) {
 	hashedPassword, err := utils.HashPassword(password)
 
 	if err != nil {
@@ -37,7 +37,7 @@ func (s *UserService) Register(email, password, displayName string) (*domain.Use
 	newUser := &domain.User{
 		Email:        email,
 		PasswordHash: string(hashedPassword),
-		DisplayName:  displayName,
+		Name:        name,
 	}
 
 	err = s.userRepo.Create(newUser)

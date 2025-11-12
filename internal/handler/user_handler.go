@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
 	"github.com/NOOKX2/e-commerce-backend/pkg/response"
@@ -24,16 +26,17 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	createdUser, err := h.userService.Register(req.Email, req.Password, req.DisplayName)
+	createdUser, err := h.userService.Register(req.Email, req.Password, req.Name)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	res := response.RegisterResponse{
-		ID:          createdUser.ID,
-		Email:       createdUser.Email,
-		DisplayName: createdUser.DisplayName,
+		ID:    createdUser.ID,
+		Email: createdUser.Email,
+		Name:  createdUser.Name,
 	}
+	fmt.Println(res)
 
 	return c.Status(fiber.StatusCreated).JSON(res)
 }
@@ -83,10 +86,10 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	}
 
 	response := response.ProfileResponse{
-		ID:          user.ID,
-		Email:       user.Email,
-		DisplayName: user.DisplayName,
-		Role:        string(user.Role),
+		ID:    user.ID,
+		Email: user.Email,
+		Name:  user.Name,
+		Role:  string(user.Role),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
