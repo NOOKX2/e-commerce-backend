@@ -47,7 +47,7 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body" + err.Error()})
 	}
 
-	token, err := h.userService.Login(req.Email, req.Password)
+	token, user, err := h.userService.Login(req.Email, req.Password)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": err.Error(),
@@ -57,9 +57,18 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 	cookie := utils.GenerateCookie(token)
 	c.Cookie(cookie)
 
+	
+	 userResponse := response.UserResponse{
+	 	ID:    user.ID,
+	 	Name:  user.Name, 
+	 	Email: user.Email,
+	 	Role:  string(user.Role),
+	 }
+	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Login successful",
 		"token":   token,
+		"user": userResponse,
 	})
 }
 
@@ -85,7 +94,7 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 		})
 	}
 
-	response := response.ProfileResponse{
+	response := response.UserResponse{
 		ID:    user.ID,
 		Email: user.Email,
 		Name:  user.Name,

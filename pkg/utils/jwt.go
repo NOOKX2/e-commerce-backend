@@ -15,6 +15,6 @@ func GenerateToken(user *domain.User, secretKey string) (string, error) {
 		"user_role": user.Role,
 		"exp":       time.Now().Add(time.Hour * 72).Unix(),
 	})
-
+	
 	return token.SignedString([]byte(secretKey))
 }

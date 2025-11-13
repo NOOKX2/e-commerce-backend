@@ -14,6 +14,7 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -46,6 +47,13 @@ func main() {
 	productHandler := handler.NewProductHandler(productService)
 
 	app := fiber.New()
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:3000, http://localhost:3001, http://localhost:3002",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET, POST, PUT, DELETE, PATCH, HEAD",
+		AllowCredentials: true, 
+	}))
 
 	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, config)
 

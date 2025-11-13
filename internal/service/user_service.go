@@ -10,8 +10,8 @@ import (
 )
 
 type UserServiceInterface interface {
-	Register(email, password,name string) (*domain.User, error)
-	Login(email, password string) (string, error)
+	Register(email, password, name string) (*domain.User, error)
+	Login(email, password string) (string, *domain.User, error)
 	GetUserByID(id uint) (*domain.User, error)
 }
 
@@ -27,7 +27,7 @@ func NewUserService(repo repository.UserRepositoryInterface, cfg *configs.Config
 	}
 }
 
-func (s *UserService) Register(email, password,name string) (*domain.User, error) {
+func (s *UserService) Register(email, password, name string) (*domain.User, error) {
 	hashedPassword, err := utils.HashPassword(password)
 
 	if err != nil {
@@ -37,7 +37,7 @@ func (s *UserService) Register(email, password,name string) (*domain.User, error
 	newUser := &domain.User{
 		Email:        email,
 		PasswordHash: string(hashedPassword),
-		Name:        name,
+		Name:         name,
 	}
 
 	err = s.userRepo.Create(newUser)
@@ -48,26 +48,26 @@ func (s *UserService) Register(email, password,name string) (*domain.User, error
 	return newUser, nil
 }
 
-func (s *UserService) Login(email, password string) (string, error) {
+func (s *UserService) Login(email, password string) (string, *domain.User, error) {
 	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if user == nil {
-		return "", errors.New("email not found")
+		return "", nil, errors.New("email not found")
 	}
 
 	validPassword := utils.CheckHashedPassword(password, user.PasswordHash)
 	if !validPassword {
-		return "", errors.New("invalid password")
+		return "", nil, errors.New("invalid password")
 	}
 
 	token, err := utils.GenerateToken(user, s.config.JWTSecret)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return token, nil
+	return token, user, nil
 }
 
 func (s *UserService) GetUserByID(id uint) (*domain.User, error) {

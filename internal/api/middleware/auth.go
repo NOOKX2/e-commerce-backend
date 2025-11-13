@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"fmt"
-
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v4"
@@ -11,7 +9,6 @@ import (
 func Authentication(config *configs.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenString := c.Cookies("jwt")
-		fmt.Println("tokenString", tokenString)
 		if tokenString == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "jwt token not found",
