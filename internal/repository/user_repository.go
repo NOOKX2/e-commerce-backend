@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"fmt"
-
 	"github.com/NOOKX2/e-commerce-backend/internal/domain"
 	"gorm.io/gorm"
 )
@@ -22,7 +20,6 @@ func NewUserRepository(db *gorm.DB) UserRepositoryInterface {
 }
 
 func (r *userRepository) Create(user *domain.User) error {
-	fmt.Println("create user from repository")
 	result := r.db.Create(user)
 	return result.Error
 }

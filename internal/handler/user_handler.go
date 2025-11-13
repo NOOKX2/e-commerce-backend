@@ -26,19 +26,23 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	createdUser, err := h.userService.Register(req.Email, req.Password, req.Name)
+	token, createdUser, err := h.userService.Register(req.Email, req.Password, req.Name)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	res := response.RegisterResponse{
+	registerResponse := response.UserResponse{
 		ID:    createdUser.ID,
 		Email: createdUser.Email,
 		Name:  createdUser.Name,
 	}
-	fmt.Println(res)
+	fmt.Println(registerResponse)
 
-	return c.Status(fiber.StatusCreated).JSON(res)
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message": "Register successfully",
+		"token": token,
+		"user": registerResponse,
+	})
 }
 
 func (h *UserHandler) Login(c *fiber.Ctx) error {
