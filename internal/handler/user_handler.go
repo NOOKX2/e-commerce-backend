@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
@@ -11,7 +12,7 @@ import (
 )
 
 type UserHandler struct {
-	userService service.UserServiceInterface // Handler จะคุยกับ Service
+	userService service.UserServiceInterface 
 }
 
 func NewUserHandler(svc service.UserServiceInterface) *UserHandler {
@@ -27,7 +28,15 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	}
 
 	token, createdUser, err := h.userService.Register(req.Email, req.Password, req.Name)
+	fmt.Printf("Error Type: %T, Message: %v\n", err, err)
 	if err != nil {
+		if errors.Is(err, service.ErrUserExisted){
+			return  c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"status": "false",
+				"errorType": "User Exist",
+				"message": "User with this email already exist.",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
@@ -53,7 +62,22 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 
 	token, user, err := h.userService.Login(req.Email, req.Password)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		if errors.Is(err, service.ErrUserNotFound){
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status": "false",
+				"errorType": "User not found",
+				"message": "User with this email not found",
+			})
+		}
+
+		if errors.Is(err, service.ErrPasswordIncorrect){
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"status": "false",
+				"errorType": "Pssword incorrect",
+				"message": "Password incorrect",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}

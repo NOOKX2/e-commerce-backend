@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/NOOKX2/e-commerce-backend/internal/domain"
@@ -28,6 +29,16 @@ func NewUserService(repo repository.UserRepositoryInterface, cfg *configs.Config
 }
 
 func (s *UserService) Register(email, password, name string) (string, *domain.User, error) {
+	existedUser, err := s.userRepo.GetUserByEmail(email)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if existedUser != nil {
+		fmt.Println("request come here in service second")
+		return "", nil, ErrUserExisted
+	}
+
 	hashedPassword, err := utils.HashPassword(password)
 
 	if err != nil {
@@ -42,7 +53,6 @@ func (s *UserService) Register(email, password, name string) (string, *domain.Us
 
 	err = s.userRepo.Create(newUser)
 	if err != nil {
-
 		return "", nil, err
 	}
 
@@ -50,7 +60,6 @@ func (s *UserService) Register(email, password, name string) (string, *domain.Us
 	if err != nil {
 		return "", nil, err
 	}
-
 
 	return token, newUser, nil
 }
@@ -61,12 +70,12 @@ func (s *UserService) Login(email, password string) (string, *domain.User, error
 		return "", nil, err
 	}
 	if user == nil {
-		return "", nil, errors.New("email not found")
+		return "", nil, ErrUserNotFound
 	}
 
 	validPassword := utils.CheckHashedPassword(password, user.PasswordHash)
 	if !validPassword {
-		return "", nil, errors.New("invalid password")
+		return "", nil, ErrPasswordIncorrect
 	}
 
 	token, err := utils.GenerateToken(user, s.config.JWTSecret)
