@@ -8,6 +8,7 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
 	"github.com/NOOKX2/e-commerce-backend/pkg/response"
+	"github.com/NOOKX2/e-commerce-backend/pkg/utils"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -29,14 +30,15 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 		})
 	}
 
-	sellerIDFloat, ok := c.Locals("userID").(float64)
-	if !ok {
+	sellerID, err := utils.GetUserIDFromContext(c)
+
+	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": "User ID not found",
+			"success": "false",
+			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
 
-	sellerID := uint(sellerIDFloat)
 	productInput := service.CreateProductInput{
 		Name:        req.Name,
 		Price:       req.Price,
@@ -83,17 +85,14 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 }
 
 func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
-
-	idStr := c.Params("id")
-	id64, err := strconv.ParseUint(idStr, 10, 64)
-
+	productID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid data type. ID must be integer",
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": "false",
+			"error": "Product not found" + err.Error(),
 		})
 	}
-	id := uint(id64)
-	product, err := h.ProductService.GetProductByID(id)
+	product, err := h.ProductService.GetProductByID(c.UserContext(), productID)
 
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -141,11 +140,12 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": "true",
 		"message": "Get product by slug successfully",
-		"data": productResponse,
+		"data":    productResponse,
 	})
 }
 
 func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
+	ctx := c.UserContext()
 	idStr := c.Params("id")
 	id64, err := strconv.ParseUint(idStr, 10, 64)
 
@@ -166,7 +166,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	updatedProduct, err := h.ProductService.UpdateProduct(productID, sellerID, productReq)
+	updatedProduct, err := h.ProductService.UpdateProduct(ctx, productID, sellerID, productReq)
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -185,6 +185,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 }
 
 func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
+	ctx := c.UserContext()
 	idStr := c.Params("id")
 	id64, err := strconv.ParseUint(idStr, 10, 64)
 
@@ -200,7 +201,7 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	}
 	sellerID := uint(sellerIDFloat)
 
-	if err := h.ProductService.DeleteProduct(productID, sellerID); err != nil {
+	if err := h.ProductService.DeleteProduct(ctx, productID, sellerID); err != nil {
 		switch err.Error() {
 		case service.ErrProductNotFound.Error():
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})

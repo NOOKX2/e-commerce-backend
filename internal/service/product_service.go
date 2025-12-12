@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/NOOKX2/e-commerce-backend/internal/domain"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
 	"github.com/NOOKX2/e-commerce-backend/pkg/utils"
@@ -24,12 +24,12 @@ type CreateProductInput struct {
 }
 
 type ProductServiceInterface interface {
-	AddProduct(ctx context.Context, input CreateProductInput) (*domain.Product, error)
-	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]domain.Product, error)
-	GetProductByID(id uint) (*domain.Product, error)
-	GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error)
-	UpdateProduct(productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*domain.Product, error)
-	DeleteProduct(productID uint, sellerID uint) error
+	AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error)
+	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, error)
+	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
+	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
+	UpdateProduct(ctx context.Context, productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*models.Product, error)
+	DeleteProduct(ctx context.Context, productID uint, sellerID uint) error
 }
 
 type ProductService struct {
@@ -58,7 +58,7 @@ func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string
 	return finalSlug, nil
 }
 
-func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*domain.Product, error) {
+func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error) {
 	if input.Name == "" {
 		return nil, errors.New("Product name cannot be empty")
 	}
@@ -73,7 +73,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		return nil, err
 	}
 
-	product := &domain.Product{
+	product := &models.Product{
 		Name:        input.Name,
 		Price:       input.Price,
 		Description: input.Description,
@@ -88,7 +88,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	return product, err
 }
 
-func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr string) ([]domain.Product, error) {
+func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, error) {
 	page, err := strconv.ParseUint(pageStr, 10, 64)
 	if err != nil || page < 1 {
 		page = 1
@@ -110,7 +110,7 @@ func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr 
 
 }
 
-func (s *ProductService) GetProductByID(id uint) (*domain.Product, error) {
+func (s *ProductService) GetProductByID(ctx context.Context, id uint) (*models.Product, error) {
 	product, err := s.repo.GetProductByID(id)
 
 	if err != nil {
@@ -120,7 +120,7 @@ func (s *ProductService) GetProductByID(id uint) (*domain.Product, error) {
 	return product, nil
 }
 
-func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error) {
+func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*models.Product, error) {
 	product, err := s.repo.GetProductBySlug(ctx, slug)
 
 	if err != nil {
@@ -130,7 +130,7 @@ func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*do
 	return product, nil
 }
 
-func (s *ProductService) getProductForUpdate(productID uint, sellerID uint) (*domain.Product, error) {
+func (s *ProductService) getProductForUpdate(ctx context.Context, productID uint, sellerID uint) (*models.Product, error) {
 	existingProduct, err := s.repo.GetProductByID(productID)
 	if err != nil {
 		return nil, err
@@ -147,8 +147,8 @@ func (s *ProductService) getProductForUpdate(productID uint, sellerID uint) (*do
 	return existingProduct, nil
 }
 
-func (s *ProductService) UpdateProduct(productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*domain.Product, error) {
-	existingProduct, err := s.getProductForUpdate(productID, sellerID)
+func (s *ProductService) UpdateProduct(ctx context.Context, productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*models.Product, error) {
+	existingProduct, err := s.getProductForUpdate(ctx, productID, sellerID)
 
 	if err != nil {
 		return nil, err
@@ -165,7 +165,7 @@ func (s *ProductService) UpdateProduct(productID uint, sellerID uint, productReq
 	return existingProduct, nil
 }
 
-func (s *ProductService) DeleteProduct(productID uint, sellerID uint) error {
+func (s *ProductService) DeleteProduct(ctx context.Context, productID uint, sellerID uint) error {
 	product, err := s.repo.GetProductByID(productID)
 
 	if err != nil {

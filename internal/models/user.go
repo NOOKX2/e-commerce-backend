@@ -1,4 +1,4 @@
-package domain
+package models
 
 import (
 	"time"
@@ -12,5 +12,5 @@ type User struct {
 	PasswordHash string    `json:"password" gorm:"not null"`
 	Name         string    `json:"name" gorm:"not null;size:100"`
 	Role         UserRole  `json:"role" gorm:"not null;size:50;default:'buyer'"`
-	CreatedAt    time.Time `json:"created_at"`
+	CreatedAt    time.Time `json:"createdAt"`
 }

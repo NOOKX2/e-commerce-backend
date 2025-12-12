@@ -8,7 +8,7 @@ import (
 
 func Authentication(config *configs.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		tokenString := c.Cookies("jwt")
+		tokenString := c.Cookies("session_token")
 		if tokenString == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "jwt token not found",
@@ -32,14 +32,15 @@ func Authentication(config *configs.Config) fiber.Handler {
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
+
 		if !ok {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid JWT claims data format",
 			})
 		}
 
-		c.Locals("userID", claims["user_id"])
-		c.Locals("userRole", claims["user_role"])
+		c.Locals("user_id", claims["user_id"])
+		c.Locals("user_role", claims["user_role"])
 
 		return c.Next()
 	}

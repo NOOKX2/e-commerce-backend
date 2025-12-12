@@ -5,16 +5,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/NOOKX2/e-commerce-backend/internal/domain"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"gorm.io/gorm"
 )
 
 type ProductRepositoryInterface interface {
-	Create(ctx context.Context, product *domain.Product) error
-	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]domain.Product, error)
-	GetProductByID(id uint) (*domain.Product, error)
-	GetProductBySlug(ctx context.Context,slug string) (*domain.Product, error)
-	UpdateProduct(product *domain.Product) error
+	Create(ctx context.Context, product *models.Product) error
+	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, error)
+	GetProductByID(id uint) (*models.Product, error)
+	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
+	UpdateProduct(product *models.Product) error
 	DeleteProduct(id uint) error
 }
 
@@ -26,14 +26,14 @@ func NewProductRepository(db *gorm.DB) ProductRepositoryInterface {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) Create(ctx context.Context, product *domain.Product) error {
+func (r *productRepository) Create(ctx context.Context, product *models.Product) error {
 	result := r.db.WithContext(ctx).Create(product)
 	return result.Error
 }
 
-func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]domain.Product, error) {
-	products := make([]domain.Product, 0)
-	query := r.db.Model(&domain.Product{})
+func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, error) {
+	products := make([]models.Product, 0)
+	query := r.db.Model(&models.Product{})
 
 	if category != "" {
 		categories := strings.Split(category, ",")
@@ -73,8 +73,8 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 	return products, nil
 }
 
-func (r *productRepository) GetProductByID(id uint) (*domain.Product, error) {
-	var product domain.Product
+func (r *productRepository) GetProductByID(id uint) (*models.Product, error) {
+	var product models.Product
 	result := r.db.Where("id = ?", id).First(&product)
 
 	if result.Error != nil {
@@ -87,22 +87,22 @@ func (r *productRepository) GetProductByID(id uint) (*domain.Product, error) {
 	return &product, nil
 }
 
-func (r *productRepository) GetProductBySlug(ctx context.Context, slug string) (*domain.Product, error) {
-	var product domain.Product
+func (r *productRepository) GetProductBySlug(ctx context.Context, slug string) (*models.Product, error) {
+	var product models.Product
 	err := r.db.WithContext(ctx).Where("slug = ?", slug).First(&product).Error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &product, nil
 }
 
-func (r *productRepository) UpdateProduct(product *domain.Product) error {
+func (r *productRepository) UpdateProduct(product *models.Product) error {
 	result := r.db.Save(product)
 	return result.Error
 }
 
 func (r productRepository) DeleteProduct(id uint) error {
-	result := r.db.Delete(&domain.Product{}, id)
+	result := r.db.Delete(&models.Product{}, id)
 	return result.Error
 }

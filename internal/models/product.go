@@ -1,4 +1,4 @@
-package domain
+package models
 
 import "gorm.io/gorm"
 
@@ -8,7 +8,7 @@ type Product struct {
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
 	Category    string  `json:"category"`
-	ImageURL    string  `json:"image_url"`
-	SellerID    uint    `json:"seller_id"`
+	ImageURL    string  `json:"imageUrl"`
+	SellerID    uint    `json:"sellerId"`
 	Slug        string  `json:"slug"`
 }

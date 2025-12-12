@@ -3,11 +3,11 @@ package utils
 import (
 	"time"
 
-	"github.com/NOOKX2/e-commerce-backend/internal/domain"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func GenerateToken(user *domain.User, secretKey string) (string, error) {
+func GenerateToken(user *models.User, secretKey string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"email":     user.Email,
 		"name":      user.Name,

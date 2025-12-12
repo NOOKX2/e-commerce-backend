@@ -9,7 +9,7 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/NOOKX2/e-commerce-backend/internal/api"
 	"github.com/NOOKX2/e-commerce-backend/internal/db"
-	"github.com/NOOKX2/e-commerce-backend/internal/domain"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/handler"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
@@ -31,7 +31,7 @@ func main() {
 		log.Fatalf("Fatal error: database connection failed: %v", err)
 	}
 
-	if err := dbConnection.AutoMigrate(&domain.User{}, &domain.Product{}); err != nil {
+	if err := dbConnection.AutoMigrate(&models.User{}, &models.Product{}); err != nil {
 		log.Fatalf("failed to run auto-migrations: %v", err)
 	}
 
@@ -46,6 +46,11 @@ func main() {
 	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
 
+	orderRepository := repository.NewOrderRepository(dbConnection)
+	orderService := service.NewOrderService(orderRepository, productService)
+	orderHandler := handler.NewOrderHandler(orderService)
+
+
 	app := fiber.New()
 
 	app.Use(cors.New(cors.Config{
@@ -55,7 +60,7 @@ func main() {
 		AllowCredentials: true, 
 	}))
 
-	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, config)
+	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, config)
 
 	log.Printf("Server is starting on port %s", config.ApiPort)
 	err = app.Listen(":" + config.ApiPort)

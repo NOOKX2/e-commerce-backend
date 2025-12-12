@@ -3,11 +3,11 @@ package response
 import (
 	"time"
 
-	"github.com/NOOKX2/e-commerce-backend/internal/domain"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 )
 
 type ProductResponse struct {
-	ID          uint      `json:"id"`
+	ID          uint      
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Price       float64   `json:"price"`
@@ -19,7 +19,7 @@ type ProductResponse struct {
 	Slug        string    `json:"slug"`
 }
 
-func ToProductResponse(product domain.Product) ProductResponse {
+func ToProductResponse(product models.Product) ProductResponse {
 	return ProductResponse{
 		ID:          product.ID,
 		Name:        product.Name,
@@ -34,7 +34,7 @@ func ToProductResponse(product domain.Product) ProductResponse {
 	}
 }
 
-func ToProductResponses(products []domain.Product) []ProductResponse {
+func ToProductResponses(products []models.Product) []ProductResponse {
 	responses := make([]ProductResponse, 0, len(products))
 	for _, product := range products {
 		responses = append(responses, ToProductResponse(product))

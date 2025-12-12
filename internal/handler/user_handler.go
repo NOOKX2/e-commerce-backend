@@ -101,13 +101,14 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 }
 
 func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
-	userIDFloat, ok := c.Locals("userID").(float64)
-	if !ok {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "User ID not found in cookie",
+	userID, err := utils.GetUserIDFromContext(c)
+
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": "false",
+			"error": "Unauthorized access" + err.Error(),
 		})
 	}
-	userID := uint(userIDFloat)
 
 	user, err := h.userService.GetUserByID(userID)
 	if err != nil {

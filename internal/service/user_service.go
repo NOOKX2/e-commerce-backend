@@ -5,15 +5,15 @@ import (
 	"fmt"
 
 	"github.com/NOOKX2/e-commerce-backend/configs"
-	"github.com/NOOKX2/e-commerce-backend/internal/domain"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/pkg/utils"
 )
 
 type UserServiceInterface interface {
-	Register(email, password, name string) (string, *domain.User, error)
-	Login(email, password string) (string, *domain.User, error)
-	GetUserByID(id uint) (*domain.User, error)
+	Register(email, password, name string) (string, *models.User, error)
+	Login(email, password string) (string, *models.User, error)
+	GetUserByID(id uint) (*models.User, error)
 }
 
 type UserService struct {
@@ -28,7 +28,7 @@ func NewUserService(repo repository.UserRepositoryInterface, cfg *configs.Config
 	}
 }
 
-func (s *UserService) Register(email, password, name string) (string, *domain.User, error) {
+func (s *UserService) Register(email, password, name string) (string, *models.User, error) {
 	existedUser, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return "", nil, err
@@ -45,7 +45,7 @@ func (s *UserService) Register(email, password, name string) (string, *domain.Us
 		return "", nil, errors.New("failed to hash password")
 	}
 
-	newUser := &domain.User{
+	newUser := &models.User{
 		Email:        email,
 		PasswordHash: string(hashedPassword),
 		Name:         name,
@@ -64,7 +64,7 @@ func (s *UserService) Register(email, password, name string) (string, *domain.Us
 	return token, newUser, nil
 }
 
-func (s *UserService) Login(email, password string) (string, *domain.User, error) {
+func (s *UserService) Login(email, password string) (string, *models.User, error) {
 	user, err := s.userRepo.GetUserByEmail(email)
 	if err != nil {
 		return "", nil, err
@@ -86,7 +86,7 @@ func (s *UserService) Login(email, password string) (string, *domain.User, error
 	return token, user, nil
 }
 
-func (s *UserService) GetUserByID(id uint) (*domain.User, error) {
+func (s *UserService) GetUserByID(id uint) (*models.User, error) {
 	user, err := s.userRepo.GetUserByID(id)
 
 	if err != nil {
