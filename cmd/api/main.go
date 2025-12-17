@@ -31,7 +31,7 @@ func main() {
 		log.Fatalf("Fatal error: database connection failed: %v", err)
 	}
 
-	if err := dbConnection.AutoMigrate(&models.User{}, &models.Product{}); err != nil {
+	if err := dbConnection.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.OrderItem{}, &models.ShippingAddress{}); err != nil {
 		log.Fatalf("failed to run auto-migrations: %v", err)
 	}
 

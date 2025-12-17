@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
@@ -12,20 +11,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
-
-type CreateOrderRequest struct {
-	ShippingAddress string `json:"shippingAddress" validate:"required"`
-	Items           []struct {
-		ProductID uint `json:"productId" validate:"required,gt=0"`
-		Quantity  uint `json:"quantity"  validate:"required,gt=0"`
-	} `json:"items" validate:"required,min=1,dive"`
-
-	PaymentIntentID string `json:"paymentIntentId" validate:"required"`
-}
-
-type CreatePaymentIntentRequest struct {
-	Items []request.CartItemRequest `json:"items" validate:"required,min=1"`
-}
 
 type OrderHandler struct {
 	OrderService service.OrderServiceInterface
@@ -42,11 +27,11 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": "false",
-			"error": "Unauthorized access" + err.Error(),
+			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
 
-	var req CreateOrderRequest
+	var req request.CreateOrderRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": "false",
@@ -67,10 +52,6 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 			ProductID: item.ProductID,
 			Quantity:  item.Quantity,
 		}
-	}
-
-	for _, item := range orderItems {
-		fmt.Println(item)
 	}
 
 	createdOrder, err := h.OrderService.CreateOrder(
@@ -98,14 +79,13 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 // }
 
 func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
-	
 
 	userID, err := utils.GetUserIDFromContext(c)
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": "false",
-			"error": "Unauthorized access" + err.Error(),
+			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
 
@@ -124,14 +104,13 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 }
 
 func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
-	
 
 	userID, err := utils.GetUserIDFromContext(c)
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": "false",
-			"error": "Unauthorized access" + err.Error(),
+			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
 

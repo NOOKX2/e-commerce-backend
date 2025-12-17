@@ -8,14 +8,14 @@ import (
 
 type Order struct {
 	gorm.Model
-	UserID                uint        `json:"userId"`
-	Status                string      `json:"status"`
-	TotalAmount           float64     `json:"totalAmount" gorm:"type:numeric(10,2)"`
-	ShippingAddress       string      `json:"shippingAddress"`
-	StripePaymentIntentID *string     `json:"stripePaymentIntentId"`
-	CreatedAt             time.Time   `json:"createdAt"`
-	UpdatedAt             time.Time   `json:"updatedAt"`
-	Items                 []OrderItem `gorm:"foreignKey:OrderID" json:"items"`
+	UserID                uint            `json:"userId"`
+	Status                string          `json:"status"`
+	TotalAmount           float64         `json:"totalAmount" gorm:"type:numeric(10,2)"`
+	ShippingAddress       ShippingAddress `json:"shippingAddress" gorm:"embedded;embeddedPrefix:shipping_"`
+	StripePaymentIntentID *string         `json:"stripePaymentIntentId" gorm:"unique"`
+	CreatedAt             time.Time       `json:"createdAt"`
+	UpdatedAt             time.Time       `json:"updatedAt"`
+	Items                 []OrderItem     `gorm:"foreignKey:OrderID" json:"items"`
 }
 
 type OrderItem struct {
@@ -29,4 +29,12 @@ type OrderItem struct {
 
 
 
-
+type ShippingAddress struct {
+    ReceiverName  string `json:"receiverName" gorm:"not null;default:''" validate:"required"` 
+    PhoneNumber   string `json:"phoneNumber" gorm:"not null;default:''" validate:"required"` 
+    StreetAddress string `json:"streetAddress" gorm:"not null;default:''" validate:"required"` 
+    SubDistrict   string `json:"subDistrict" gorm:"not null;default:''" validate:"required"`
+    District      string `json:"district" gorm:"not null;default:''" validate:"required"`
+    Province      string `json:"province" gorm:"not null;default:''" validate:"required"`
+    PostalCode    string `json:"postalCode" gorm:"not null;default:''" validate:"required,numeric"`
+}

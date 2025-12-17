@@ -11,13 +11,11 @@ import (
 )
 
 type OrderServiceInterface interface {
-	CreateOrder(ctx context.Context, userID uint, shippingAddress string, items []models.OrderItem, paymentIntentID string) (*models.Order, error)
+	CreateOrder(ctx context.Context, userID uint, shippingAddress *models.ShippingAddress, items []models.OrderItem, paymentIntentID string) (*models.Order, error)
 	GetAllOrders(ctx context.Context) ([]models.Order, error)
 	GetUserOrders(ctx context.Context, userID uint) ([]models.Order, error)
 	GetOrderByID(ctx context.Context, orderID uint, userID uint) (*models.Order, error)
 }
-
-
 
 type OrderService struct {
 	orderRepo   repository.OrderRepositoryInterface
@@ -31,7 +29,7 @@ func NewOrderService(orderRepo repository.OrderRepositoryInterface, productRepo 
 	}
 }
 
-func (os *OrderService) CreateOrder(ctx context.Context, userID uint, shippingAddress string, items []models.OrderItem, paymentIntentID string) (*models.Order, error) {
+func (os *OrderService) CreateOrder(ctx context.Context, userID uint, shippingAddress *models.ShippingAddress, items []models.OrderItem, paymentIntentID string) (*models.Order, error) {
 	if len(items) == 0 {
 		return nil, ErrOrderNotFound
 	}
@@ -59,7 +57,7 @@ func (os *OrderService) CreateOrder(ctx context.Context, userID uint, shippingAd
 		UserID:                userID,
 		Status:                "pending",
 		TotalAmount:           totalAmount,
-		ShippingAddress:       shippingAddress,
+		ShippingAddress:       *shippingAddress,
 		StripePaymentIntentID: &paymentIntentID,
 		Items:                 processedItems,
 	}
