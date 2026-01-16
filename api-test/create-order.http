@@ -1,0 +1,21 @@
+POST http://localhost:8080/api/v1/orders
+Content-Type: application/json
+
+{
+    "shippingAddress": {
+        "receiverName": "Somsak Jaidee",
+        "phoneNumber": "0812345678",
+        "streetAddress": "123/45 Sukhumvit Rd.",
+        "subDistrict": "Khlong Toei",
+        "district": "Khlong Toei",
+        "province": "Bangkok",
+        "postalCode": "10110"
+    },
+    "items": [
+        {
+            "productID": 6,
+            "quantity": 100
+        }
+    ],
+    "paymentIntentId": "pm_card_visa_test_002"
+}

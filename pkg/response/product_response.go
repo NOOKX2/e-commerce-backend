@@ -7,8 +7,9 @@ import (
 )
 
 type ProductResponse struct {
-	ID          uint      
+	ID          uint
 	Name        string    `json:"name"`
+	SKU         string    `json:"sku" gorm:"uniqueIndex;not null"`
 	Description string    `json:"description"`
 	Price       float64   `json:"price"`
 	Category    string    `json:"category"`
@@ -17,12 +18,14 @@ type ProductResponse struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 	Slug        string    `json:"slug"`
+	Quantity    uint      `json:"quantity"`
 }
 
 func ToProductResponse(product models.Product) ProductResponse {
 	return ProductResponse{
 		ID:          product.ID,
 		Name:        product.Name,
+		SKU:         product.SKU,
 		Description: product.Description,
 		Price:       product.Price,
 		Category:    product.Category,
@@ -31,6 +34,7 @@ func ToProductResponse(product models.Product) ProductResponse {
 		CreatedAt:   product.CreatedAt,
 		UpdatedAt:   product.UpdatedAt,
 		Slug:        product.Slug,
+		Quantity:    product.Quantity,
 	}
 }
 

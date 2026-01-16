@@ -16,20 +16,24 @@ import (
 
 type CreateProductInput struct {
 	Name        string
+	SKU         string
 	Price       float64
 	Description string
 	SellerID    uint
 	ImageUrl    string
 	Category    string
+	Quantity    uint
 }
 
 type ProductServiceInterface interface {
 	AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error)
-	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, error)
+	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, int64, error)
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	UpdateProduct(ctx context.Context, productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*models.Product, error)
 	DeleteProduct(ctx context.Context, productID uint, sellerID uint) error
+	AddToStock(ctx context.Context, id uint, amount uint ) error
+	RemoveFromStock(ctx context.Context, id uint, amount uint) error
 }
 
 type ProductService struct {
@@ -40,7 +44,12 @@ func NewProductService(repo repository.ProductRepositoryInterface) ProductServic
 	return &ProductService{repo: repo}
 }
 
-func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string) (string, error) {
+func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string, sku string) (string, error) {
+	existingProduct, err := s.repo.GetProductBySKU(ctx, sku)
+	if err == nil {
+		return existingProduct.Slug, nil
+	}
+
 	finalSlug := baseSlug
 	for i := 1; ; i++ {
 		_, err := s.repo.GetProductBySlug(ctx, finalSlug)
@@ -59,6 +68,21 @@ func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string
 }
 
 func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error) {
+	existingProduct, err := s.repo.GetProductBySKU(ctx, input.SKU)
+	if err == nil {
+		err = s.repo.AddToStock(ctx, existingProduct.ID, input.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update stock: %w", err)
+		}
+
+		updatedProduct, _ := s.repo.GetProductBySKU(ctx, input.SKU)
+		return updatedProduct, nil
+	}
+
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
 	if input.Name == "" {
 		return nil, errors.New("Product name cannot be empty")
 	}
@@ -68,19 +92,21 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	}
 
 	baseSlug := utils.Slugify(input.Name)
-	uniqueSlug, err := s.generateUniqueSlug(ctx, baseSlug)
+	uniqueSlug, err := s.generateUniqueSlug(ctx, baseSlug, input.SKU)
 	if err != nil {
 		return nil, err
 	}
 
 	product := &models.Product{
 		Name:        input.Name,
+		SKU:         input.SKU,
 		Price:       input.Price,
 		Description: input.Description,
 		SellerID:    input.SellerID,
 		ImageURL:    input.ImageUrl,
 		Category:    input.Category,
 		Slug:        uniqueSlug,
+		Quantity:    input.Quantity,
 	}
 
 	err = s.repo.Create(ctx, product)
@@ -88,7 +114,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	return product, err
 }
 
-func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, error) {
+func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, int64, error) {
 	page, err := strconv.ParseUint(pageStr, 10, 64)
 	if err != nil || page < 1 {
 		page = 1
@@ -101,17 +127,17 @@ func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr 
 
 	offset := (page - 1) * limit
 
-	products, err := s.repo.GetAllProduct(category, price, sort, uint(limit), uint(offset))
+	products, total, err := s.repo.GetAllProduct(category, price, sort, uint(limit), uint(offset))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return products, nil
+	return products, total, nil
 
 }
 
 func (s *ProductService) GetProductByID(ctx context.Context, id uint) (*models.Product, error) {
-	product, err := s.repo.GetProductByID(id)
+	product, err := s.repo.GetProductByID(ctx, id)
 
 	if err != nil {
 		return nil, err
@@ -131,7 +157,7 @@ func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*mo
 }
 
 func (s *ProductService) getProductForUpdate(ctx context.Context, productID uint, sellerID uint) (*models.Product, error) {
-	existingProduct, err := s.repo.GetProductByID(productID)
+	existingProduct, err := s.repo.GetProductByID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +192,7 @@ func (s *ProductService) UpdateProduct(ctx context.Context, productID uint, sell
 }
 
 func (s *ProductService) DeleteProduct(ctx context.Context, productID uint, sellerID uint) error {
-	product, err := s.repo.GetProductByID(productID)
+	product, err := s.repo.GetProductByID(ctx, productID)
 
 	if err != nil {
 		return ErrProductNotFound
@@ -181,4 +207,12 @@ func (s *ProductService) DeleteProduct(ctx context.Context, productID uint, sell
 	}
 
 	return nil
+}
+
+func (s * ProductService) AddToStock(ctx context.Context, id uint, amount uint) error {
+	return s.repo.AddToStock(ctx, id, amount)
+}
+
+func (s * ProductService) RemoveFromStock(ctx context.Context, id uint, amount uint) error {
+	return s.repo.RemoveFromStock(ctx, id, amount)
 }

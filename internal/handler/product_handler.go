@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
@@ -40,12 +41,14 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 	}
 
 	productInput := service.CreateProductInput{
+		SKU:         req.SKU,
 		Name:        req.Name,
 		Price:       req.Price,
 		Description: req.Description,
 		SellerID:    sellerID,
 		ImageUrl:    req.ImageUrl,
 		Category:    req.Category,
+		Quantity:    req.Quantity,
 	}
 
 	product, err := h.ProductService.AddProduct(ctx, productInput)
@@ -68,7 +71,9 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	pageQuery := c.Query("page", "1")
 	limitQuery := c.Query("limit", "12")
 
-	products, err := h.ProductService.GetAllProduct(categoryQuery, priceQuery, sortQuery, pageQuery, limitQuery)
+	limitInt, _ := strconv.Atoi(limitQuery)
+
+	products, total, err := h.ProductService.GetAllProduct(categoryQuery, priceQuery, sortQuery, pageQuery, limitQuery)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error loading products" + err.Error(),
@@ -77,10 +82,17 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 
 	productResponses := response.ToProductResponses(products)
 
+	totalPages := int(math.Ceil(float64(total) / float64(limitInt)))
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": "true",
 		"message": "Get all products successful",
 		"data":    productResponses,
+		"meta": fiber.Map{
+			"total_items": total,
+			"total_pages": totalPages,
+			"limit":       limitInt,
+		},
 	})
 }
 
@@ -89,7 +101,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"success": "false",
-			"error": "Product not found" + err.Error(),
+			"error":   "Product not found" + err.Error(),
 		})
 	}
 	product, err := h.ProductService.GetProductByID(c.UserContext(), productID)
@@ -101,6 +113,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	}
 
 	if product == nil {
+		fmt.Println("error is here")
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Product ID not found",
 		})
@@ -124,9 +137,10 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 	product, err := h.ProductService.GetProductBySlug(c.UserContext(), slug)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			fmt.Println("error is here")
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"success": "false",
-				"message": "Product not found",
+				"message": "Product not found " + err.Error(),
 			})
 		}
 
@@ -146,18 +160,17 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 
 func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	ctx := c.UserContext()
-	idStr := c.Params("id")
-	id64, err := strconv.ParseUint(idStr, 10, 64)
-
+	productID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid data type. ID must be integer",
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": "false",
+			"error":   "Product not found" + err.Error(),
 		})
 	}
-	productID := uint(id64)
+	
 	sellerIDFloat, ok := c.Locals("userID").(float64)
 	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication context is missing"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "product id not found"})
 	}
 	sellerID := uint(sellerIDFloat)
 

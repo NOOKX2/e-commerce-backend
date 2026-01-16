@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -11,11 +13,14 @@ import (
 
 type ProductRepositoryInterface interface {
 	Create(ctx context.Context, product *models.Product) error
-	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, error)
-	GetProductByID(id uint) (*models.Product, error)
+	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, int64, error)
+	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	UpdateProduct(product *models.Product) error
 	DeleteProduct(id uint) error
+	GetProductBySKU(ctx context.Context, sku string) (*models.Product, error)
+	AddToStock(ctx context.Context, id uint, amount uint) error
+	RemoveFromStock(ctx context.Context, id uint, amount uint) error
 }
 
 type productRepository struct {
@@ -31,7 +36,8 @@ func (r *productRepository) Create(ctx context.Context, product *models.Product)
 	return result.Error
 }
 
-func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, error) {
+func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, int64, error) {
+	var total int64
 	products := make([]models.Product, 0)
 	query := r.db.Model(&models.Product{})
 
@@ -51,6 +57,10 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 		}
 	}
 
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	if sort != "" {
 		sortParts := strings.Split(sort, "_")
 		if len(sortParts) == 2 {
@@ -68,12 +78,12 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 	query = query.Limit(int(limit)).Offset(int(offset))
 
 	if err := query.Find(&products).Error; err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return products, nil
+	return products, total, nil
 }
 
-func (r *productRepository) GetProductByID(id uint) (*models.Product, error) {
+func (r *productRepository) GetProductByID(ctx context.Context, id uint) (*models.Product, error) {
 	var product models.Product
 	result := r.db.Where("id = ?", id).First(&product)
 
@@ -105,4 +115,56 @@ func (r *productRepository) UpdateProduct(product *models.Product) error {
 func (r productRepository) DeleteProduct(id uint) error {
 	result := r.db.Delete(&models.Product{}, id)
 	return result.Error
+}
+
+func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*models.Product, error) {
+	var product models.Product
+
+	err := r.db.WithContext(ctx).Where("sku = ?", sku).First(&product).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &product, nil
+}
+
+func (r *productRepository) AddToStock(ctx context.Context, id uint, amount uint) error {
+	result := r.db.WithContext(ctx).Model(&models.Product{}).
+		Where("id = ? AND quantity >= ?", id, amount).
+		Update("quantity", gorm.Expr("quantity + ?", amount))
+	
+	if result.Error != nil {
+		return result.Error;
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("Product not found")
+	}
+	return nil;
+}
+
+func (r *productRepository) RemoveFromStock(ctx context.Context, id uint, amount uint) error {
+	var product models.Product
+	if err := r.db.WithContext(ctx).Select("id, quantity").First(&product, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("Product not found")
+		}
+		return err
+	}
+
+	if uint(product.Quantity) < amount {
+		return fmt.Errorf("Insufficient Stock: available %d, requested %d", product.Quantity, amount)
+	}
+
+	result := r.db.WithContext(ctx).Model(&models.Product{}).
+		Where("id = ? AND quantity >= ?", id, amount).
+		Update("quantity", gorm.Expr("quantity - ?", amount))
+	
+	if result.Error != nil {
+		return result.Error;
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("Product not found")
+	}
+	return nil;
 }

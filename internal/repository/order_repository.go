@@ -8,6 +8,7 @@ import (
 )
 
 type OrderRepositoryInterface interface {
+	WithTransaction(ctx context.Context, fn func(repo OrderRepositoryInterface) (*models.Order, error)) (*models.Order, error)	
 	CreateOrder(ctx context.Context, order *models.Order) (*models.Order, error)
 	GetAllOrders(ctx context.Context) ([]models.Order, error)
 	GetUserOrders(ctx context.Context, userID uint) ([]models.Order, error)
@@ -20,6 +21,21 @@ type orderRepository struct {
 
 func NewOrderRepository(db *gorm.DB) OrderRepositoryInterface {
 	return &orderRepository{db: db}
+}
+
+func (r *orderRepository) WithTransaction(ctx context.Context, fn func(repo OrderRepositoryInterface) (*models.Order, error)) (*models.Order, error) {
+    var resultOrder *models.Order 
+
+    err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+        txRepo := &orderRepository{db: tx}
+
+        var err error
+        resultOrder, err = fn(txRepo)
+
+        return err 
+    })
+
+    return resultOrder, err
 }
 
 func (r *orderRepository) CreateOrder(ctx context.Context, order *models.Order) (*models.Order, error) {

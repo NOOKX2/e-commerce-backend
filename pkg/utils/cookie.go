@@ -8,7 +8,7 @@ import (
 
 func GenerateCookie(token string) *fiber.Cookie {
 	return &fiber.Cookie{
-		Name:     "jwt",
+		Name:     "session_token",
 		Value:    token,
 		Expires:  time.Now().Add(72 * time.Hour),
 		HTTPOnly: true,
