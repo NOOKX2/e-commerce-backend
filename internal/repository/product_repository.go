@@ -131,7 +131,7 @@ func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*m
 
 func (r *productRepository) AddToStock(ctx context.Context, id uint, amount uint) error {
 	result := r.db.WithContext(ctx).Model(&models.Product{}).
-		Where("id = ? AND quantity >= ?", id, amount).
+		Where("id = ?", id).
 		Update("quantity", gorm.Expr("quantity + ?", amount))
 	
 	if result.Error != nil {

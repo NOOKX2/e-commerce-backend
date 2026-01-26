@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"context"
+	"errors"
+
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"gorm.io/gorm"
 )
@@ -9,6 +12,7 @@ type UserRepositoryInterface interface {
 	Create(user *models.User) error
 	GetUserByEmail(email string) (*models.User, error)
 	GetUserByID(id uint) (*models.User, error)
+	UpdateStripeCustomerID(ctx context.Context, userID uint, stripeCustomerID string) error
 }
 
 type userRepository struct {
@@ -54,4 +58,18 @@ func (r *userRepository) GetUserByID(id uint) (*models.User, error) {
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) UpdateStripeCustomerID(ctx context.Context, userID uint, stripeCustomerID string) error {
+	result := r.db.WithContext(ctx).Model(&models.User{}).Where("id = ?", userID).Update("stripe_customer_id", stripeCustomerID)
+
+	if result.Error != nil {
+		return result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return errors.New("user not found")
+	}
+
+	return nil
 }

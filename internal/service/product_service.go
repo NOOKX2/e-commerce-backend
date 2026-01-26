@@ -71,7 +71,9 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	existingProduct, err := s.repo.GetProductBySKU(ctx, input.SKU)
 	if err == nil {
 		err = s.repo.AddToStock(ctx, existingProduct.ID, input.Quantity)
+		fmt.Println(existingProduct.ID, existingProduct.SKU)
 		if err != nil {
+			fmt.Println("error here", err);
 			return nil, fmt.Errorf("failed to update stock: %w", err)
 		}
 

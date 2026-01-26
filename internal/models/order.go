@@ -16,6 +16,7 @@ type Order struct {
 	CreatedAt             time.Time       `json:"createdAt"`
 	UpdatedAt             time.Time       `json:"updatedAt"`
 	Items                 []OrderItem     `gorm:"foreignKey:OrderID" json:"items"`
+	UserCardID            *uint           `json:"userCardId"`
 }
 
 type OrderItem struct {

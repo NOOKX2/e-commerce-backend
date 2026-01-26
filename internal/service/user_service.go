@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -14,6 +15,7 @@ type UserServiceInterface interface {
 	Register(email, password, name string) (string, *models.User, error)
 	Login(email, password string) (string, *models.User, error)
 	GetUserByID(id uint) (*models.User, error)
+	UpdateStripeCustomerID(ctx context.Context, userID uint, stripeCustomerID string) error
 }
 
 type UserService struct {
@@ -94,4 +96,12 @@ func (s *UserService) GetUserByID(id uint) (*models.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *UserService) UpdateStripeCustomerID(ctx context.Context, userID uint, stripeCustomerID string) error {
+	if err := s.userRepo.UpdateStripeCustomerID(ctx, userID, stripeCustomerID); err != nil {
+		return fmt.Errorf("could not update stripe customer id: %w", err)
+	}
+
+	return nil
 }

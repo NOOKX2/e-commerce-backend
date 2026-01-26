@@ -1,15 +1,15 @@
 POST http://localhost:8080/api/v1/products
 Content-Type: application/json
 
-# {
-# 	"name": "IPad Pro 11 M5",
-#     "sku": "ipad-pro-11-m5-256",
-#     "description": "Latest IPad Pro with m5 chip AI",
-#     "price" : 2000,
-#     "image_url": "https://pub-5592941e133640c5ba14efd027808849.r2.dev/ipad_pro_11_m5.jpg",
-#     "category": "tablet",
-#     "quantity": 1
-# }
+{
+	"name": "IPad Pro 11 M5",
+    "sku": "ipad-pro-11-m5-256",
+    "description": "Latest IPad Pro with m5 chip AI",
+    "price" : 2000,
+    "image_url": "https://pub-5592941e133640c5ba14efd027808849.r2.dev/ipad_pro_11_m5.jpg",
+    "category": "tablet",
+    "quantity": 1
+}
 
 # {
 # 	"name": "IPhone 17 Pro Max",
@@ -31,15 +31,15 @@ Content-Type: application/json
 #     "quantity": 1
 # }
 
-{
-	"name": "Macbook Air M4",
-    "sku": "macbook-air-13-512",
-    "description": "Latest Macbook Air M4 with new M4 chip",
-    "price" : 34900,
-    "image_url": "https://pub-5592941e133640c5ba14efd027808849.r2.dev/macbook_air_m4.jpeg",
-    "category": "notebook",
-    "quantity": 1
-}
+# {
+# 	"name": "Macbook Air M4",
+#     "sku": "macbook-air-13-512",
+#     "description": "Latest Macbook Air M4 with new M4 chip",
+#     "price" : 34900,
+#     "image_url": "https://pub-5592941e133640c5ba14efd027808849.r2.dev/macbook_air_m4.jpeg",
+#     "category": "notebook",
+#     "quantity": 1
+# }
 
 
 

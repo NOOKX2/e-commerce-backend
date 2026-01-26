@@ -3,21 +3,24 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/NOOKX2/e-commerce-backend/internal/api"
 	"github.com/NOOKX2/e-commerce-backend/internal/db"
-	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/handler"
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/stripe/stripe-go/v76"
 )
 
 func main() {
+	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	config, err := configs.LoadConfig(".")
 	if err != nil {
 		log.Fatalf("Fatal error: could not load config file %v", err)
@@ -31,7 +34,7 @@ func main() {
 		log.Fatalf("Fatal error: database connection failed: %v", err)
 	}
 
-	if err := dbConnection.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.OrderItem{}, &models.ShippingAddress{}); err != nil {
+	if err := dbConnection.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.OrderItem{}, &models.ShippingAddress{}, &models.UserCard{}); err != nil {
 		log.Fatalf("failed to run auto-migrations: %v", err)
 	}
 
@@ -46,10 +49,13 @@ func main() {
 	productService := service.NewProductService(productRepository)
 	productHandler := handler.NewProductHandler(productService)
 
-	orderRepository := repository.NewOrderRepository(dbConnection)
-	orderService := service.NewOrderService(orderRepository, productService)
-	orderHandler := handler.NewOrderHandler(orderService)
+	userCardRepository := repository.NewUserCardRepository(dbConnection)
+	userCardService := service.NewUserCardService(userCardRepository)
+	userCardHandler := handler.NewUserCardHandler(userCardService)
 
+	orderRepository := repository.NewOrderRepository(dbConnection)
+	orderService := service.NewOrderService(orderRepository, productService, userCardService, userService)
+	orderHandler := handler.NewOrderHandler(orderService)
 
 	app := fiber.New()
 
@@ -57,10 +63,10 @@ func main() {
 		AllowOrigins:     "http://localhost:3000, http://localhost:3001, http://localhost:3002",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET, POST, PUT, DELETE, PATCH, HEAD",
-		AllowCredentials: true, 
+		AllowCredentials: true,
 	}))
 
-	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, config)
+	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, userCardHandler, config)
 
 	log.Printf("Server is starting on port %s", config.ApiPort)
 	err = app.Listen(":" + config.ApiPort)

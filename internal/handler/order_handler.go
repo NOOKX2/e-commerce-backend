@@ -59,7 +59,8 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		userID,
 		req.ShippingAddress,
 		orderItems,
-		req.PaymentIntentID,
+		req.PaymentMethodID,
+		req.SavedCreditCard,
 	)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

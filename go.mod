@@ -9,6 +9,7 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/spf13/viper v1.21.0
+	github.com/stripe/stripe-go/v76 v76.25.0
 	golang.org/x/crypto v0.43.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0

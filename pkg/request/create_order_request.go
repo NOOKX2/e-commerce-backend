@@ -6,9 +6,10 @@ import (
 
 type CreateOrderRequest struct {
 	ShippingAddress *models.ShippingAddress `json:"shippingAddress" validate:"required"`
-	Items           []CartItemRequest         `json:"items" validate:"required,min=1,dive"`
+	Items           []CartItemRequest       `json:"items" validate:"required,min=1,dive"`
 
-	PaymentIntentID string `json:"paymentIntentId" validate:"required"`
+	PaymentMethodID string `json:"paymentMethodId" validate:"required"`
+	SavedCreditCard bool   `json:"savedCreditCard"`
 }
 
 type CreatePaymentIntentRequest struct {
