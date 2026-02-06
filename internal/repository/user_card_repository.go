@@ -82,7 +82,6 @@ func (r *userCardRepository) GetCardByStripePaymentMethodID(ctx context.Context,
 }
 
 func (r *userCardRepository) DeleteCard(ctx context.Context, cardID uint, userID uint) error {
-	fmt.Printf("Attempting to delete Card ID: %d for User ID: %d\n", cardID, userID)
 	result := r.db.WithContext(ctx).Where("id = ? AND user_id = ?", cardID, userID).Delete(&models.UserCard{})
 	if result.Error != nil {
 		return result.Error

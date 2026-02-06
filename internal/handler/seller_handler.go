@@ -17,3 +17,5 @@ func (h *SellerHandler) GetProductsPage(c *fiber.Ctx) error{
 		"seller_id": userID,
 	})
 }
+
+

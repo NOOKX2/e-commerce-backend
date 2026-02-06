@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler *handler.SellerHandler, adminHandler *handler.AdminHandler, productHandler *handler.ProductHandler, orderHandler *handler.OrderHandler, userCardHandler *handler.UserCardHandler, config *configs.Config) {
+func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler *handler.SellerHandler, adminHandler *handler.AdminHandler, productHandler *handler.ProductHandler, orderHandler *handler.OrderHandler, userCardHandler *handler.UserCardHandler, uploadHandler *handler.UploadHandler, config *configs.Config) {
 	v1 := app.Group("/api/v1")
 
 	v1.Get("/", func(c *fiber.Ctx) error {
@@ -25,10 +25,11 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 
 	authRequired := v1.Group("/", middleware.Authentication(config))
 	authRequired.Get("/profile", userHandler.GetUserProfile)
-	authRequired.Post("/products", productHandler.AddProduct)
 
 	authRequired.Put("/products/:id", productHandler.UpdateProduct)
 	authRequired.Delete("/products/:id", productHandler.DeleteProduct)
+
+	authRequired.Get("/upload/sign-url", uploadHandler.GetSignedURL)
 
 	orderRoute := authRequired.Group("/orders")
 	orderRoute.Get("/", orderHandler.GetUserOrders)
@@ -44,5 +45,9 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	admin.Get("/dashboard", adminHandler.GetDashboard)
 
 	seller := v1.Group("/seller", middleware.Authentication(config), middleware.RoleRequired("seller"))
-	seller.Get("/products", sellerHandler.GetProductsPage)
+	seller.Get("/products", productHandler.GetProductsBySellerID)
+	seller.Get("/categories", productHandler.GetCategories)
+	seller.Post("/products", productHandler.AddProduct)    
+    seller.Put("/products/:id", productHandler.UpdateProduct) 
+    seller.Delete("/products/:id", productHandler.DeleteProduct)
 }

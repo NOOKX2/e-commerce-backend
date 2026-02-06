@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
@@ -24,15 +25,17 @@ func NewProductHandler(svc service.ProductServiceInterface) *ProductHandler {
 
 func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 	ctx := c.UserContext()
-	req := new(request.ProductRequest)
-	if err := c.BodyParser(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request " + err.Error(),
+
+	var req request.ProductRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid JSON: " + err.Error(),
 		})
 	}
 
 	sellerID, err := utils.GetUserIDFromContext(c)
-
+	fmt.Println("seller id product", sellerID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": "false",
@@ -40,24 +43,32 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 		})
 	}
 
+	sku := req.SKU
+	if sku == "" {
+		sku = fmt.Sprintf("%s-%d", utils.Slugify(req.Name), time.Now().Unix()%10000)
+	}
+
 	productInput := service.CreateProductInput{
-		SKU:         req.SKU,
+		SKU:         sku,
 		Name:        req.Name,
 		Price:       req.Price,
+		CostPrice:   req.CostPrice,
 		Description: req.Description,
 		SellerID:    sellerID,
 		ImageUrl:    req.ImageUrl,
 		Category:    req.Category,
 		Quantity:    req.Quantity,
+		ImageHash:   req.ImageHash,
 	}
 
 	product, err := h.ProductService.AddProduct(ctx, productInput)
 	if err != nil {
+		fmt.Println("error here",err.Error())
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-
+	fmt.Println(product)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "Create product successful",
 		"product": product,
@@ -81,7 +92,6 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	}
 
 	productResponses := response.ToProductResponses(products)
-
 	totalPages := int(math.Ceil(float64(total) / float64(limitInt)))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -167,7 +177,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 			"error":   "Product not found" + err.Error(),
 		})
 	}
-	
+
 	sellerIDFloat, ok := c.Locals("userID").(float64)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "product id not found"})
@@ -189,7 +199,6 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		case service.ErrForbidden.Error():
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 		default:
-			// Error อื่นๆ ที่ไม่คาดคิด (เช่น DB down)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "an unexpected error occurred"})
 		}
 	}
@@ -221,7 +230,6 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 		case service.ErrForbidden.Error():
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 		default:
-			// Error อื่นๆ ที่ไม่คาดคิด (เช่น DB down)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "an unexpected error occurred"})
 		}
 	}
@@ -229,4 +237,48 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Delete product successfully.",
 	})
+}
+
+func (h *ProductHandler) GetProductsBySellerID(c *fiber.Ctx) error {
+	ctx := c.UserContext()
+	sellerID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": "false",
+			"error":   "SellerID not found" + err.Error(),
+		})
+	}
+
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	search := c.Query("search", "")
+
+	products, meta, err := h.ProductService.GetProductsBySellerID(ctx, sellerID, page, limit, search)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": false,
+			"error":  err.Error()})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":   true,
+		"products": products,
+		"meta":     meta,
+	})
+
+}
+
+func (h *ProductHandler) GetCategories(c *fiber.Ctx) error {
+	categories, err := h.ProductService.GetAllCategories(c.UserContext())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+            "error": "Failed to fetch categories: " + err.Error(),
+        })
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "success": true,
+        "data":    categories,
+    })
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
+	"time"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
@@ -18,11 +20,13 @@ type CreateProductInput struct {
 	Name        string
 	SKU         string
 	Price       float64
+	CostPrice   float64
 	Description string
 	SellerID    uint
 	ImageUrl    string
 	Category    string
 	Quantity    uint
+	ImageHash   string
 }
 
 type ProductServiceInterface interface {
@@ -32,16 +36,22 @@ type ProductServiceInterface interface {
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	UpdateProduct(ctx context.Context, productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*models.Product, error)
 	DeleteProduct(ctx context.Context, productID uint, sellerID uint) error
-	AddToStock(ctx context.Context, id uint, amount uint ) error
+	AddToStock(ctx context.Context, id uint, amount uint) error
 	RemoveFromStock(ctx context.Context, id uint, amount uint) error
+	GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, map[string]interface{}, error)
+	GetAllCategories(ctx context.Context) ([]models.Category, error)
 }
 
 type ProductService struct {
-	repo repository.ProductRepositoryInterface
+	repo          repository.ProductRepositoryInterface
+	uploadService UploadService
 }
 
-func NewProductService(repo repository.ProductRepositoryInterface) ProductServiceInterface {
-	return &ProductService{repo: repo}
+func NewProductService(repo repository.ProductRepositoryInterface, uploadService UploadService) *ProductService {
+	return &ProductService{
+		repo:          repo,
+		uploadService: uploadService,
+	}
 }
 
 func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string, sku string) (string, error) {
@@ -68,12 +78,18 @@ func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string
 }
 
 func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error) {
+	fmt.Printf("Service Input: %+v\n", input)
+
+	if input.SKU == "" {
+		input.SKU = fmt.Sprintf("%s-%d", utils.Slugify(input.Name), time.Now().Unix()%10000)
+	}
+
 	existingProduct, err := s.repo.GetProductBySKU(ctx, input.SKU)
 	if err == nil {
 		err = s.repo.AddToStock(ctx, existingProduct.ID, input.Quantity)
-		fmt.Println(existingProduct.ID, existingProduct.SKU)
+		fmt.Println("existing", existingProduct.ID, existingProduct.SKU)
 		if err != nil {
-			fmt.Println("error here", err);
+			fmt.Println(err)
 			return nil, fmt.Errorf("failed to update stock: %w", err)
 		}
 
@@ -81,8 +97,38 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		return updatedProduct, nil
 	}
 
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, fmt.Errorf("database error: %w", err)
+	normalizedName := utils.NormalizeName(input.Name)
+
+	existingProduct, err = s.repo.GetProductByNormalizedName(ctx, input.SellerID, normalizedName)
+	if err == nil {
+
+		if err := s.AddToStock(ctx, existingProduct.ID, input.Quantity); err != nil {
+			return nil, fmt.Errorf("failed to update stock by name: %w", err)
+		}
+
+		existingProduct.Price = input.Price
+		existingProduct.CostPrice = input.CostPrice
+		if (input.Description != "") {
+			existingProduct.Description = input.Description
+		}
+
+		if err := s.repo.UpdateProduct(existingProduct); err != nil {
+			return nil, fmt.Errorf("failed to update product info: %w", err)
+		}
+
+		return s.repo.GetProductByID(ctx, existingProduct.ID)
+	}
+
+	categoryName := input.Category
+	if categoryName == "" {
+		categoryName = "General"
+	}
+	categorySlug := utils.Slugify(categoryName)
+	categoryID, err := s.repo.GetOrCreateCategory(ctx, categoryName, categorySlug)
+	fmt.Println("category id", categoryID)
+	fmt.Println("error from category id", err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to handle category: %w", err)
 	}
 
 	if input.Name == "" {
@@ -100,18 +146,33 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	}
 
 	product := &models.Product{
-		Name:        input.Name,
-		SKU:         input.SKU,
-		Price:       input.Price,
-		Description: input.Description,
-		SellerID:    input.SellerID,
-		ImageURL:    input.ImageUrl,
-		Category:    input.Category,
-		Slug:        uniqueSlug,
-		Quantity:    input.Quantity,
+		Name:           input.Name,
+		NormalizedName: normalizedName,
+		SKU:            input.SKU,
+		Price:          input.Price,
+		Description:    input.Description,
+		SellerID:       input.SellerID,
+		ImageURL:       input.ImageUrl,
+		CategoryID:     categoryID,
+		Slug:           uniqueSlug,
+		Quantity:       input.Quantity,
+		CostPrice:      input.CostPrice,
+		ImageHash:      input.ImageHash,
+	}
+	if err := s.repo.Create(ctx, product); err != nil {
+		return nil, err
 	}
 
-	err = s.repo.Create(ctx, product)
+	if input.ImageHash != "" && input.ImageUrl != "" {
+
+		errMedia := s.uploadService.SaveMediaRecord(input.ImageHash, input.ImageUrl)
+		if errMedia != nil {
+
+			fmt.Printf("Log: Failed to save media record for hash %s: %v\n", input.ImageHash, errMedia)
+		} else {
+			fmt.Printf("Log: Media record saved successfully for hash: %s\n", input.ImageHash)
+		}
+	}
 
 	return product, err
 }
@@ -211,10 +272,35 @@ func (s *ProductService) DeleteProduct(ctx context.Context, productID uint, sell
 	return nil
 }
 
-func (s * ProductService) AddToStock(ctx context.Context, id uint, amount uint) error {
+func (s *ProductService) AddToStock(ctx context.Context, id uint, amount uint) error {
 	return s.repo.AddToStock(ctx, id, amount)
 }
 
-func (s * ProductService) RemoveFromStock(ctx context.Context, id uint, amount uint) error {
+func (s *ProductService) RemoveFromStock(ctx context.Context, id uint, amount uint) error {
 	return s.repo.RemoveFromStock(ctx, id, amount)
+}
+
+func (s *ProductService) GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, map[string]interface{}, error) {
+	products, total, err := s.repo.GetProductsBySellerID(ctx, sellerID, page, limit, search)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+
+	meta := map[string]interface{}{
+		"total_pages":  totalPages,
+		"current_page": page,
+		"total_items":  total,
+	}
+
+	if products == nil {
+		return []models.Product{}, meta, nil
+	}
+
+	return products, meta, nil
+}
+
+func (s *ProductService) GetAllCategories(ctx context.Context) ([]models.Category, error) {
+	return s.repo.GetAllCategories(ctx)
 }

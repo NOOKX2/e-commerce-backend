@@ -51,6 +51,21 @@ func (osv *OrderService) CreateOrder(ctx context.Context, userID uint, shippingA
 		return nil, fmt.Errorf("User id not found: %v", err)
 	}
 
+	for _, item := range items {
+		product, err := osv.productRepo.GetProductByID(ctx, item.ProductID)
+		if err != nil {
+			return nil, fmt.Errorf("Product id not found: %v", err)
+		}
+
+		if (product.SellerID == userID) {
+			return nil, fmt.Errorf("Seller cannot buy your own product")
+		}
+
+		if (product.Quantity < item.Quantity) {
+			return nil, fmt.Errorf("%s not enough in stock", product.Name)
+		}
+	}
+
 	stripeCustomerID := user.StripeCustomerID
 	if strings.TrimSpace(stripeCustomerID) == "" {
 		params := &stripe.CustomerParams{

@@ -12,7 +12,7 @@ type ProductResponse struct {
 	SKU         string    `json:"sku" gorm:"uniqueIndex;not null"`
 	Description string    `json:"description"`
 	Price       float64   `json:"price"`
-	Category    string    `json:"category"`
+	Category    models.Category   `json:"category"`
 	ImageURL    string    `json:"imageUrl"`
 	SellerID    uint      `json:"sellerId"`
 	CreatedAt   time.Time `json:"createdAt"`

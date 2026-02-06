@@ -1,10 +1,12 @@
 package middleware
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+)
 
 func RoleRequired(requiredRole string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		userRole, ok := c.Locals("userRole").(string)
+		userRole, ok := c.Locals("user_role").(string)
 
 		if !ok {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -14,12 +16,10 @@ func RoleRequired(requiredRole string) fiber.Handler {
 
 		if userRole != requiredRole {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "You don't have hermission to access this resource",
+				"error": "You don't have hermission to access this resource. You are not a " + requiredRole,
 			})
 		}
 
 		return c.Next()
 	}
 }
-
-
