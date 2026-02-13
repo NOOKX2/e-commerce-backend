@@ -83,7 +83,7 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 
 	query = query.Limit(int(limit)).Offset(int(offset))
 
-	if err := query.Find(&products).Error; err != nil {
+	if err := query.Where("status = ?", "active").Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 	return products, total, nil

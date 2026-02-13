@@ -38,7 +38,7 @@ func ToProductResponse(product models.Product) ProductResponse {
 		UpdatedAt:   product.UpdatedAt,
 		Slug:        product.Slug,
 		Quantity:    product.Quantity,
-		Status:      product.Status,
+		Status:      string(product.Status),
 		CostPrice:   product.CostPrice,
 		SalePrice:   product.SalePrice,
 	}
