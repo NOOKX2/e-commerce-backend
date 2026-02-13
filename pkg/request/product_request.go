@@ -13,7 +13,12 @@ type ProductRequest struct {
 }
 
 type UpdateProductRequest struct {
-	Name        string
-	Price       float64
-	Description string
+	Name        string  `json:"name"`
+	Price       float64 `json:"price"`
+	Description string  `json:"description"`
+	Category    string  `json:"category"`
+	SalePrice   float64 `json:"sale_price"`
+	Quantity    uint    `json:"quantity"`
+	Status      string  `json:"status"`
+	CostPrice   float64 `json:"cost_price"`
 }

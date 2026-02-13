@@ -25,6 +25,8 @@ type ProductRepositoryInterface interface {
 	GetOrCreateCategory(ctx context.Context, name string, slug string) (uint, error)
 	GetAllCategories(ctx context.Context) ([]models.Category, error)
 	GetProductByNormalizedName(ctx context.Context, sellerID uint, normalizedName string) (*models.Product, error)
+	UpdateProductBySKU(ctx context.Context, sku string, sellerID uint, product *models.Product) (*models.Product, error)
+	GetCategoryBySlug(ctx context.Context, slug string) (*models.Category, error)
 }
 
 type productRepository struct {
@@ -92,7 +94,7 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uint) (*model
 	result := r.db.Where("id = ?", id).First(&product)
 
 	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound { 
+		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
 
@@ -103,7 +105,7 @@ func (r *productRepository) GetProductByID(ctx context.Context, id uint) (*model
 
 func (r *productRepository) GetProductBySlug(ctx context.Context, slug string) (*models.Product, error) {
 	var product models.Product
-	err := r.db.WithContext(ctx).Where("slug = ?", slug).First(&product).Error
+	err := r.db.Preload("Category").WithContext(ctx).Where("slug = ?", slug).First(&product).Error
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +126,7 @@ func (r productRepository) DeleteProduct(id uint) error {
 func (r *productRepository) GetProductBySKU(ctx context.Context, sku string) (*models.Product, error) {
 	var product models.Product
 
-	err := r.db.WithContext(ctx).Where("sku = ?", sku).First(&product).Error
+	err := r.db.Preload("Category").WithContext(ctx).Where("sku = ?", sku).First(&product).Error
 
 	if err != nil {
 		return nil, err
@@ -137,14 +139,14 @@ func (r *productRepository) AddToStock(ctx context.Context, id uint, amount uint
 	result := r.db.WithContext(ctx).Model(&models.Product{}).
 		Where("id = ?", id).
 		Update("quantity", gorm.Expr("quantity + ?", amount))
-	
+
 	if result.Error != nil {
-		return result.Error;
+		return result.Error
 	}
 	if result.RowsAffected == 0 {
 		return errors.New("Product not found")
 	}
-	return nil;
+	return nil
 }
 
 func (r *productRepository) RemoveFromStock(ctx context.Context, id uint, amount uint) error {
@@ -163,24 +165,24 @@ func (r *productRepository) RemoveFromStock(ctx context.Context, id uint, amount
 	result := r.db.WithContext(ctx).Model(&models.Product{}).
 		Where("id = ? AND quantity >= ?", id, amount).
 		Update("quantity", gorm.Expr("quantity - ?", amount))
-	
+
 	if result.Error != nil {
-		return result.Error;
+		return result.Error
 	}
 	if result.RowsAffected == 0 {
 		return errors.New("Product not found")
 	}
-	return nil;
+	return nil
 }
 
 func (r *productRepository) GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, int64, error) {
 	var products []models.Product
 	var total int64
-    offset := (page - 1) * limit
+	offset := (page - 1) * limit
 
 	query := r.db.WithContext(ctx).Model(&models.Product{}).Where("seller_id = ?", sellerID)
 
-	if (search != "") {
+	if search != "" {
 		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(search)+"%")
 	}
 
@@ -188,10 +190,10 @@ func (r *productRepository) GetProductsBySellerID(ctx context.Context, sellerID 
 		return nil, 0, err
 	}
 
-	result := query.Order("created_at DESC").
-        Limit(limit).
-        Offset(offset).
-        Find(&products)
+	result := query.Preload("Category").Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&products)
 
 	if result.Error != nil {
 		return nil, 0, result.Error
@@ -204,9 +206,9 @@ func (r *productRepository) GetOrCreateCategory(ctx context.Context, name string
 	var category models.Category
 
 	if err := r.db.WithContext(ctx).Where(models.Category{Slug: slug}).
-        Attrs(models.Category{Name: name}).
-        FirstOrCreate(&category).Error; err != nil {
-			return 0, err
+		Attrs(models.Category{Name: name}).
+		FirstOrCreate(&category).Error; err != nil {
+		return 0, err
 	}
 
 	return category.ID, nil
@@ -214,20 +216,67 @@ func (r *productRepository) GetOrCreateCategory(ctx context.Context, name string
 
 func (r *productRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	var categories []models.Category
-    if err := r.db.WithContext(ctx).Order("name asc").Find(&categories).Error; err != nil {
-        return nil, err
-    }
-    return categories, nil
+	if err := r.db.WithContext(ctx).Order("name asc").Find(&categories).Error; err != nil {
+		return nil, err
+	}
+	return categories, nil
 }
 
 func (r *productRepository) GetProductByNormalizedName(ctx context.Context, sellerID uint, normalizedName string) (*models.Product, error) {
 	var product models.Product
 
-	if err := r.db.WithContext(ctx).
-        Where("seller_id = ? AND normalized_name = ?", sellerID, normalizedName).
-        First(&product).Error; err != nil {
-			return nil, err
+	if err := r.db.Preload("Category").WithContext(ctx).
+		Where("seller_id = ? AND normalized_name = ?", sellerID, normalizedName).
+		First(&product).Error; err != nil {
+		return nil, err
 	}
 
 	return &product, nil
+}
+
+func (r *productRepository) UpdateProductBySKU(ctx context.Context, sku string, sellerID uint, product *models.Product) (*models.Product, error) {
+	var updatedProduct models.Product
+	fmt.Println("update product")
+	fmt.Printf("product category %v\n", product.Category)
+
+	result := r.db.Debug().WithContext(ctx).
+		Model(&models.Product{}).
+		Where("sku = ? AND seller_id = ?", sku, sellerID).
+		Updates(map[string]interface{}{
+			"name":        product.Name,
+			"description": product.Description,
+			"price":       product.Price,
+			"sale_price":  product.SalePrice,
+			"cost_price":  product.CostPrice,
+			"quantity":    product.Quantity,
+			"status":      product.Status,
+			"category_id": product.CategoryID,
+		})
+
+	fmt.Printf("result %v\n", result)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	if result.RowsAffected == 0 {
+		return nil, errors.New("product with this SKU not found")
+	}
+
+	if err := r.db.Debug().WithContext(ctx).
+		Preload("Category").
+		Where("sku = ? AND seller_id = ?", sku, sellerID).
+		First(&updatedProduct).Error; err != nil {
+		return nil, err
+	}
+
+	return &updatedProduct, nil
+}
+
+func (r *productRepository) GetCategoryBySlug(ctx context.Context, slug string) (*models.Category, error) {
+	var category models.Category
+
+	if err := r.db.WithContext(ctx).Where("slug = ?", slug).First(&category).Error; err != nil {
+		return nil, err
+	}
+	return &category, nil
 }

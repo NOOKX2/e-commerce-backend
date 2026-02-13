@@ -40,6 +40,7 @@ type ProductServiceInterface interface {
 	RemoveFromStock(ctx context.Context, id uint, amount uint) error
 	GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, map[string]interface{}, error)
 	GetAllCategories(ctx context.Context) ([]models.Category, error)
+	UpdateProductBySKU(ctx context.Context, sellerID uint, sku string, req request.UpdateProductRequest) (*models.Product, error)
 }
 
 type ProductService struct {
@@ -303,4 +304,41 @@ func (s *ProductService) GetProductsBySellerID(ctx context.Context, sellerID uin
 
 func (s *ProductService) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	return s.repo.GetAllCategories(ctx)
+}
+
+func (s *ProductService) UpdateProductBySKU(ctx context.Context, sellerID uint, sku string, req request.UpdateProductRequest) (*models.Product, error) {
+	existingProduct, err := s.repo.GetProductBySKU(ctx, sku)
+    if err != nil {
+        return nil, err
+    }
+
+	if existingProduct.SellerID != sellerID {
+        return nil, errors.New("unauthorized: you don't own this product")
+    }
+
+	category, err := s.repo.GetCategoryBySlug(ctx, req.Category)
+	if err != nil {
+		return nil, fmt.Errorf("invalid category: %s", req.Category)
+	}
+
+	fmt.Println("category",category)
+
+	existingProduct.Name = req.Name
+    existingProduct.Price = req.Price
+    existingProduct.Description = req.Description
+    existingProduct.CategoryID = category.ID
+	existingProduct.Category = *category
+	existingProduct.SalePrice = req.SalePrice
+	existingProduct.CostPrice = req.CostPrice
+	existingProduct.Quantity = req.Quantity
+	existingProduct.Status = req.Status	
+
+	fmt.Println(existingProduct.Category)
+	
+	updateProduct, err := s.repo.UpdateProductBySKU(ctx,  existingProduct.SKU, existingProduct.SellerID, existingProduct)
+	if err != nil {
+		return nil, err
+	}
+
+	return updateProduct, nil
 }

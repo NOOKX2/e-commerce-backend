@@ -11,7 +11,7 @@ type Product struct {
 	Price          float64  `json:"price"`
 	CostPrice      float64  `json:"costPrice" gorm:"default:0"`
 	CategoryID     uint     `json:"categoryID"`
-	Category       Category `json:"category"`
+	Category       Category `json:"category" gorm:"foreignKey:CategoryID"`
 	ImageURL       string   `json:"imageUrl"`
 	SellerID       uint     `json:"sellerId"`
 	Seller         User     `json:"-" gorm:"foreignKey:SellerID"`
@@ -21,4 +21,5 @@ type Product struct {
 	TotalSales     int      `json:"totalSales" gorm:"default:0"`
 	Rating         float64  `json:"rating" gorm:"default:0"`
 	ImageHash      string   `json:"imageHash"`
+	SalePrice      float64  `json:"salePrice"`
 }
