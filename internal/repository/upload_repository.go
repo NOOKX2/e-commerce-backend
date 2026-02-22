@@ -8,6 +8,7 @@ import (
 type UploadRepository interface {
 	GetMediaByHash(hash string) (*models.Media, error)
 	SaveMedia(media *models.Media) error
+	DeleteMediaByHash(hash string) error
 }
 
 type uploadRepository struct {
@@ -31,4 +32,8 @@ func (r *uploadRepository) GetMediaByHash(hash string) (*models.Media, error) {
 
 func (r *uploadRepository) SaveMedia(media *models.Media) error {
     return r.db.Create(media).Error
+}
+
+func (r *uploadRepository) DeleteMediaByHash(hash string) error {
+	return r.db.Where("hash = ?", hash).Delete(&models.Media{}).Error
 }

@@ -35,7 +35,6 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 	}
 
 	sellerID, err := utils.GetUserIDFromContext(c)
-	fmt.Println("seller id product", sellerID)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": "false",
@@ -63,12 +62,11 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 
 	product, err := h.ProductService.AddProduct(ctx, productInput)
 	if err != nil {
-		fmt.Println("error here",err.Error())
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-	fmt.Println(product)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"message": "Create product successful",
 		"product": product,
@@ -123,7 +121,6 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	}
 
 	if product == nil {
-		fmt.Println("error is here")
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Product ID not found",
 		})
@@ -147,7 +144,6 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 	product, err := h.ProductService.GetProductBySlug(c.UserContext(), slug)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			fmt.Println("error is here")
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"success": "false",
 				"message": "Product not found " + err.Error(),
@@ -192,7 +188,6 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	updatedProduct, err := h.ProductService.UpdateProduct(ctx, productID, sellerID, productReq)
 
 	if err != nil {
-		fmt.Println(err.Error())
 		switch err.Error() {
 		case service.ErrProductNotFound.Error():
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
@@ -273,14 +268,14 @@ func (h *ProductHandler) GetCategories(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
-            "error": "Failed to fetch categories: " + err.Error(),
-        })
+			"error":   "Failed to fetch categories: " + err.Error(),
+		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-        "success": true,
-        "data":    categories,
-    })
+		"success": true,
+		"data":    categories,
+	})
 }
 
 func (h *ProductHandler) UpdateProductBySKU(c *fiber.Ctx) error {
@@ -288,11 +283,11 @@ func (h *ProductHandler) UpdateProductBySKU(c *fiber.Ctx) error {
 
 	sku := c.Params("sku")
 	if sku == "" {
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "success": false,
-            "error":   "SKU parameter is required",
-        })
-    }
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "SKU parameter is required",
+		})
+	}
 
 	sellerID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
@@ -303,32 +298,30 @@ func (h *ProductHandler) UpdateProductBySKU(c *fiber.Ctx) error {
 	}
 
 	productReq := new(request.UpdateProductRequest)
-    if err := c.BodyParser(productReq); err != nil {
-		fmt.Println(err)
-        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-            "success": false,
-            "error":   "Invalid request body: " + err.Error(),
-        })
-    }
-
+	if err := c.BodyParser(productReq); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid request body: " + err.Error(),
+		})
+	}
+	
 	updatedProduct, err := h.ProductService.UpdateProductBySKU(ctx, sellerID, sku, *productReq)
 
 	if err != nil {
-		fmt.Println("Update error:", err.Error())
 
 		switch {
-        case errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "product with this SKU not found or unauthorized":
-            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Product not found or you don't have permission"})
-        case err.Error() == "invalid category":
-            return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
-        default:
-            return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update product: " + err.Error()})
-        }
+		case errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "product with this SKU not found or unauthorized":
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Product not found or you don't have permission"})
+		case err.Error() == "invalid category":
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		default:
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update product: " + err.Error()})
+		}
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-        "success": true,
-        "message": "Product updated successfully",
-        "data":    updatedProduct,
-    })
+		"success": true,
+		"message": "Product updated successfully",
+		"data":    updatedProduct,
+	})
 }

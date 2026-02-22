@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/pkg/response"
+	"github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
 )
 
@@ -30,11 +32,24 @@ func NewUploadService(r2 *configs.R2Config, repo repository.UploadRepository) Up
 func (s *uploadService) GetUploadInstructions(hash, filename, contentType string) (*response.UploadInstructionResponse, error) {
 	existingMedia, err := s.uploadRepo.GetMediaByHash(hash)
 	if err == nil && existingMedia != nil {
-		return &response.UploadInstructionResponse{
-			UploadURL: "",
-			PublicURL: existingMedia.PublicURL,
-			Exists:    true,
-		}, nil
+		objectName := extractObjectNameFromURL(existingMedia.PublicURL, s.r2.PublicURL)
+
+		_, errR2 := s.r2.Client.StatObject(context.Background(), s.r2.BucketName, objectName, minio.StatObjectOptions{})
+
+		if errR2 == nil {
+			return &response.UploadInstructionResponse{
+				UploadURL: "",
+				PublicURL: existingMedia.PublicURL,
+				Exists:    true,
+			}, nil
+		}
+		fmt.Println("Warning: Found DB record but missing in R2. Cleaning up DB...")
+
+		if err := s.uploadRepo.DeleteMediaByHash(hash); err != nil {
+			fmt.Printf("Error: Failed to delete ghost record from DB: %v\n", err)
+		} else {
+			fmt.Println("Hash delete successfully")
+		}
 	}
 
 	objectName := fmt.Sprintf("products/%d-%s", time.Now().Unix(), filename)
@@ -71,4 +86,15 @@ func (s *uploadService) SaveMediaRecord(hash, publicURL string) error {
 	}
 	
 	return s.uploadRepo.SaveMedia(media)
+}
+
+func (s *uploadService) ConfirmUpload(hash, publicURL string) error {
+    return s.SaveMediaRecord(hash, publicURL)
+}
+
+func extractObjectNameFromURL(fullURL, baseURL string) string {
+	baseURL = strings.TrimSuffix(baseURL, "/")
+	objectName := strings.TrimPrefix(fullURL, baseURL)
+	objectName = strings.TrimPrefix(objectName, "/")
+	return objectName
 }

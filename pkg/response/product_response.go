@@ -14,6 +14,7 @@ type ProductResponse struct {
 	Price       float64         `json:"price"`
 	Category    models.Category `json:"category"`
 	ImageURL    string          `json:"imageUrl"`
+	ImageHash   string          `json:"imageHash"`
 	SellerID    uint            `json:"sellerId"`
 	CreatedAt   time.Time       `json:"createdAt"`
 	UpdatedAt   time.Time       `json:"updatedAt"`
@@ -33,6 +34,7 @@ func ToProductResponse(product models.Product) ProductResponse {
 		Price:       product.Price,
 		Category:    product.Category,
 		ImageURL:    product.ImageURL,
+		ImageHash:   product.ImageHash,
 		SellerID:    product.SellerID,
 		CreatedAt:   product.CreatedAt,
 		UpdatedAt:   product.UpdatedAt,

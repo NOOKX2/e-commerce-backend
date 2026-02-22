@@ -79,7 +79,6 @@ func (s *ProductService) generateUniqueSlug(ctx context.Context, baseSlug string
 }
 
 func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error) {
-	fmt.Printf("Service Input: %+v\n", input)
 
 	if input.SKU == "" {
 		input.SKU = fmt.Sprintf("%s-%d", utils.Slugify(input.Name), time.Now().Unix()%10000)
@@ -88,7 +87,6 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	existingProduct, err := s.repo.GetProductBySKU(ctx, input.SKU)
 	if err == nil {
 		err = s.repo.AddToStock(ctx, existingProduct.ID, input.Quantity)
-		fmt.Println("existing", existingProduct.ID, existingProduct.SKU)
 		if err != nil {
 			fmt.Println(err)
 			return nil, fmt.Errorf("failed to update stock: %w", err)
@@ -126,8 +124,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	}
 	categorySlug := utils.Slugify(categoryName)
 	categoryID, err := s.repo.GetOrCreateCategory(ctx, categoryName, categorySlug)
-	fmt.Println("category id", categoryID)
-	fmt.Println("error from category id", err)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to handle category: %w", err)
 	}
@@ -321,19 +318,26 @@ func (s *ProductService) UpdateProductBySKU(ctx context.Context, sellerID uint, 
 		return nil, fmt.Errorf("invalid category: %s", req.Category)
 	}
 
-	fmt.Println("category", category)
-
 	existingProduct.Name = req.Name
 	existingProduct.Price = req.Price
 	existingProduct.Description = req.Description
 	existingProduct.CategoryID = category.ID
-	existingProduct.Category = *category
 	existingProduct.SalePrice = req.SalePrice
 	existingProduct.CostPrice = req.CostPrice
 	existingProduct.Quantity = req.Quantity
 	existingProduct.Status = models.ProductStatus(req.Status)
 
-	fmt.Println(existingProduct.Category)
+	if (req.ImageHash != "" && req.ImageUrl != "") {
+		if err := s.uploadService.SaveMediaRecord(req.ImageHash, req.ImageUrl); err != nil {
+			return nil, err
+		}
+
+		existingProduct.ImageHash = req.ImageHash
+		existingProduct.ImageURL = req.ImageUrl
+	}
+	
+
+	fmt.Println(existingProduct.Price)
 
 	updateProduct, err := s.repo.UpdateProductBySKU(ctx, existingProduct.SKU, existingProduct.SellerID, existingProduct)
 	if err != nil {

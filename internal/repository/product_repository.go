@@ -251,6 +251,8 @@ func (r *productRepository) UpdateProductBySKU(ctx context.Context, sku string, 
 			"quantity":    product.Quantity,
 			"status":      product.Status,
 			"category_id": product.CategoryID,
+			"image_url": product.ImageURL,
+			"image_hash": product.ImageHash,
 		})
 
 	fmt.Printf("result %v\n", result)
