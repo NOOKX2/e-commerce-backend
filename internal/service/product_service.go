@@ -35,7 +35,7 @@ type ProductServiceInterface interface {
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	UpdateProduct(ctx context.Context, productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*models.Product, error)
-	DeleteProduct(ctx context.Context, productID uint, sellerID uint) error
+	DeleteProduct(ctx context.Context, sku string, sellerID uint) error
 	AddToStock(ctx context.Context, id uint, amount uint) error
 	RemoveFromStock(ctx context.Context, id uint, amount uint) error
 	GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, map[string]interface{}, error)
@@ -252,8 +252,8 @@ func (s *ProductService) UpdateProduct(ctx context.Context, productID uint, sell
 	return existingProduct, nil
 }
 
-func (s *ProductService) DeleteProduct(ctx context.Context, productID uint, sellerID uint) error {
-	product, err := s.repo.GetProductByID(ctx, productID)
+func (s *ProductService) DeleteProduct(ctx context.Context, sku string, sellerID uint) error {
+	product, err := s.repo.GetProductBySKU(ctx, sku)
 
 	if err != nil {
 		return ErrProductNotFound
@@ -263,7 +263,7 @@ func (s *ProductService) DeleteProduct(ctx context.Context, productID uint, sell
 		return ErrForbidden
 	}
 
-	if err := s.repo.DeleteProduct(productID); err != nil {
+	if err := s.repo.DeleteProduct(sku); err != nil {
 		return fmt.Errorf("failed to delete product: %w", err)
 	}
 

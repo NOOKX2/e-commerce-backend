@@ -29,7 +29,6 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	authRequired.Get("/profile", userHandler.GetUserProfile)
 
 	authRequired.Put("/products/:id", productHandler.UpdateProduct)
-	authRequired.Delete("/products/:id", productHandler.DeleteProduct)
 
 	authRequired.Get("/upload/sign-url", uploadHandler.GetSignedURL)
 
@@ -50,6 +49,6 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	seller.Get("/products", productHandler.GetProductsBySellerID)
 	seller.Post("/products", productHandler.AddProduct)    
     seller.Put("/products/:sku", productHandler.UpdateProductBySKU) 
-    seller.Delete("/products/:id", productHandler.DeleteProduct)
+    seller.Delete("/products/:sku", productHandler.DeleteProduct)
 
 }

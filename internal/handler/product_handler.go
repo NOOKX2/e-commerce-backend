@@ -203,29 +203,24 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 
 func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	ctx := c.UserContext()
-	idStr := c.Params("id")
-	id64, err := strconv.ParseUint(idStr, 10, 64)
+	sku := c.Params("sku")
 
+	sellerID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid data type. ID must be integer",
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": "false",
+			"error":   "SellerID not found" + err.Error(),
 		})
 	}
-	productID := uint(id64)
-	sellerIDFloat, ok := c.Locals("userID").(float64)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication context is missing"})
-	}
-	sellerID := uint(sellerIDFloat)
 
-	if err := h.ProductService.DeleteProduct(ctx, productID, sellerID); err != nil {
+	if err := h.ProductService.DeleteProduct(ctx, sku, sellerID); err != nil {
 		switch err.Error() {
 		case service.ErrProductNotFound.Error():
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 		case service.ErrForbidden.Error():
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 		default:
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "an unexpected error occurred"})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "an unexpected error occurred" + err.Error()})
 		}
 	}
 

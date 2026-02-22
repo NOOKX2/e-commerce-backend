@@ -17,7 +17,7 @@ type ProductRepositoryInterface interface {
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	UpdateProduct(product *models.Product) error
-	DeleteProduct(id uint) error
+	DeleteProduct(sku string) error
 	GetProductBySKU(ctx context.Context, sku string) (*models.Product, error)
 	AddToStock(ctx context.Context, id uint, amount uint) error
 	RemoveFromStock(ctx context.Context, id uint, amount uint) error
@@ -118,8 +118,8 @@ func (r *productRepository) UpdateProduct(product *models.Product) error {
 	return result.Error
 }
 
-func (r productRepository) DeleteProduct(id uint) error {
-	result := r.db.Delete(&models.Product{}, id)
+func (r productRepository) DeleteProduct(sku string) error {
+	result := r.db.Where("sku = ?", sku).Delete(&models.Product{})
 	return result.Error
 }
 
