@@ -23,6 +23,7 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	req := new(request.RegisterRequest)
 	if err := c.BodyParser(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
 			"error": "invalid request " + err.Error(),
 		})
 	}
@@ -32,7 +33,7 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, service.ErrUserExisted){
 			return  c.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"status": "false",
+				"success": false,
 				"errorType": "User Exist",
 				"message": "User with this email already exist.",
 			})
@@ -48,6 +49,7 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	fmt.Println(registerResponse)
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"success": true,
 		"message": "Register successfully",
 		"token": token,
 		"user": registerResponse,
@@ -64,7 +66,7 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound){
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "false",
+				"success": false,
 				"errorType": "User not found",
 				"message": "User with this email not found",
 			})
@@ -72,12 +74,13 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 
 		if errors.Is(err, service.ErrPasswordIncorrect){
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "false",
+				"success": false,
 				"errorType": "Pssword incorrect",
 				"message": "Password incorrect",
 			})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
 			"error": err.Error(),
 		})
 	}
@@ -94,6 +97,7 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 	 }
 	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
 		"message": "Login successful",
 		"token":   token,
 		"user": userResponse,
@@ -105,7 +109,7 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error": "Unauthorized access" + err.Error(),
 		})
 	}
@@ -113,12 +117,14 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	user, err := h.userService.GetUserByID(userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
 			"error": "could not retrieve user",
 		})
 	}
 
 	if user == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
 			"error": "user not found",
 		})
 	}
@@ -131,6 +137,7 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
 		"message":  "Get user by ID successful",
 		"response": response,
 	})

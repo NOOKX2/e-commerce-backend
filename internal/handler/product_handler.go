@@ -37,7 +37,7 @@ func (h *ProductHandler) AddProduct(c *fiber.Ctx) error {
 	sellerID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
@@ -93,7 +93,7 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	totalPages := int(math.Ceil(float64(total) / float64(limitInt)))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": "true",
+		"success": true,
 		"message": "Get all products successful",
 		"data":    productResponses,
 		"meta": fiber.Map{
@@ -108,7 +108,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 	productID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Product not found" + err.Error(),
 		})
 	}
@@ -126,7 +126,7 @@ func (h *ProductHandler) GetProductByID(c *fiber.Ctx) error {
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status":  "success",
+		"success":  true,
 		"message": "Get product by ID successfully",
 		"data":    product,
 	})
@@ -136,7 +136,7 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 	slug := c.Params("slug")
 	if slug == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"message": "Slug parameter is required",
 		})
 	}
@@ -145,20 +145,20 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"success": "false",
+				"success": false,
 				"message": "Product not found " + err.Error(),
 			})
 		}
 
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"message": err.Error(),
 		})
 	}
 
 	productResponse := response.ToProductResponse(*product)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": "true",
+		"success": true,
 		"message": "Get product by slug successfully",
 		"data":    productResponse,
 	})
@@ -169,7 +169,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	productID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Product not found" + err.Error(),
 		})
 	}
@@ -208,7 +208,7 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	sellerID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "SellerID not found" + err.Error(),
 		})
 	}
@@ -225,6 +225,7 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
 		"message": "Delete product successfully.",
 	})
 }
@@ -234,7 +235,7 @@ func (h *ProductHandler) GetProductsBySellerID(c *fiber.Ctx) error {
 	sellerID, err := utils.GetUserIDFromContext(c)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "SellerID not found" + err.Error(),
 		})
 	}

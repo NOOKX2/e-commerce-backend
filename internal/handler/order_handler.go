@@ -26,7 +26,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
@@ -34,7 +34,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	var req request.CreateOrderRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Invalid request body: " + err.Error(),
 		})
 	}
@@ -42,7 +42,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	validate := validator.New()
 	if err := validate.Struct(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Validation failed: " + err.Error()})
 	}
 
@@ -64,7 +64,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   err.Error(),
 		})
 	}
@@ -85,7 +85,7 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
@@ -93,13 +93,13 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 	orders, err := h.OrderService.GetUserOrders(c.Context(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": "true",
+		"success": true,
 		"orders":  orders,
 	})
 }
@@ -110,7 +110,7 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Unauthorized access" + err.Error(),
 		})
 	}
@@ -118,14 +118,14 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 	orderID, err := c.ParamsInt("id")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "Invalit order ID format. Order ID must be an integer",
 		})
 	}
 
 	if orderID <= 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": "false",
+			"success": false,
 			"error":   "order id must be positive integer",
 		})
 	}
@@ -135,19 +135,80 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) ||
 			errors.Is(err, service.ErrOrderNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"success": "false",
+				"success": false,
 				"error":   "Order not found",
 			})
 		}
 
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "false",
+			"status": false,
 			"error":  err.Error(),
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": "true",
+		"success": true,
 		"order":   order,
 	})
+}
+
+func(h *OrderHandler) GetOrderBySellerID(c *fiber.Ctx) error {
+	sellerID, err := utils.GetUserIDFromContext(c)
+
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unauthorized access" + err.Error(),
+		})
+	}
+
+	orders, err := h.OrderService.GetOrderBySellerID(c.Context(), sellerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":   orders,
+	})
+}
+
+func (h *OrderHandler) GetSellerOrderDetails(c *fiber.Ctx) error {
+	orderID, err := c.ParamsInt("id")
+    if err != nil || orderID <= 0 {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "success": false,
+            "error":   "Invalid order ID format",
+        })
+    }
+
+	sellerID, err := utils.GetUserIDFromContext(c)
+    if err != nil {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "success": false,
+            "error":   "Unauthorized access: " + err.Error(),
+        })
+    }
+
+	orderDetail, err := h.OrderService.GetOrderDetailsBySellerID(c.Context(), uint(orderID), sellerID)
+    if err != nil {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
+            return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                "success": false,
+                "error":   "Order not found or you don't have permission to view this order",
+            })
+        }
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "error":   err.Error(),
+        })
+    }
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "success": true,
+        "data":    orderDetail,
+    })
 }

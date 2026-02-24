@@ -28,14 +28,13 @@ type OrderItem struct {
 	PriceAtPurchase float64 `json:"priceAtPurchase" gorm:"type:numeric(10,2)"`
 }
 
-
-
 type ShippingAddress struct {
-    ReceiverName  string `json:"receiverName" gorm:"not null;default:''" validate:"required"` 
-    PhoneNumber   string `json:"phoneNumber" gorm:"not null;default:''" validate:"required"` 
-    StreetAddress string `json:"streetAddress" gorm:"not null;default:''" validate:"required"` 
-    SubDistrict   string `json:"subDistrict" gorm:"not null;default:''" validate:"required"`
-    District      string `json:"district" gorm:"not null;default:''" validate:"required"`
-    Province      string `json:"province" gorm:"not null;default:''" validate:"required"`
-    PostalCode    string `json:"postalCode" gorm:"not null;default:''" validate:"required,numeric"`
+	Email         string `json:"email" gorm:"not null;default:''" validate:"required,email"`
+	ReceiverName  string `json:"receiverName" gorm:"not null;default:''" validate:"required"`
+	PhoneNumber   string `json:"phoneNumber" gorm:"not null;default:''" validate:"required"`
+	StreetAddress string `json:"streetAddress" gorm:"not null;default:''" validate:"required"`
+	SubDistrict   string `json:"subDistrict" gorm:"not null;default:''" validate:"required"`
+	District      string `json:"district" gorm:"not null;default:''" validate:"required"`
+	Province      string `json:"province" gorm:"not null;default:''" validate:"required"`
+	PostalCode    string `json:"postalCode" gorm:"not null;default:''" validate:"required,numeric"`
 }

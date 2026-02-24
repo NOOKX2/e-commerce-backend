@@ -24,7 +24,6 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	v1.Get("/products/:slug", productHandler.GetProductBySlug)
 	v1.Get("/categories", productHandler.GetCategories)
 
-
 	authRequired := v1.Group("/", middleware.Authentication(config))
 	authRequired.Get("/profile", userHandler.GetUserProfile)
 
@@ -47,8 +46,10 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 
 	seller := v1.Group("/seller", middleware.Authentication(config), middleware.RoleRequired("seller"))
 	seller.Get("/products", productHandler.GetProductsBySellerID)
-	seller.Post("/products", productHandler.AddProduct)    
-    seller.Put("/products/:sku", productHandler.UpdateProductBySKU) 
-    seller.Delete("/products/:sku", productHandler.DeleteProduct)
+	seller.Get("/orders", orderHandler.GetOrderBySellerID)
+	seller.Get("/orders/:id", orderHandler.GetSellerOrderDetails)
+	seller.Post("/products", productHandler.AddProduct)
+	seller.Put("/products/:sku", productHandler.UpdateProductBySKU)
+	seller.Delete("/products/:sku", productHandler.DeleteProduct)
 
 }

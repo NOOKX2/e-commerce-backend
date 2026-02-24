@@ -10,6 +10,7 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
+	"github.com/NOOKX2/e-commerce-backend/pkg/response"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/customer"
 	"github.com/stripe/stripe-go/v76/paymentintent"
@@ -22,6 +23,8 @@ type OrderServiceInterface interface {
 	GetAllOrders(ctx context.Context) ([]models.Order, error)
 	GetUserOrders(ctx context.Context, userID uint) ([]models.Order, error)
 	GetOrderByID(ctx context.Context, orderID uint, userID uint) (*models.Order, error)
+	GetOrderBySellerID(ctx context.Context, sellerID uint) ([]response.SellerOrderResponse, error)
+	GetOrderDetailsBySellerID(ctx context.Context, orderID uint, sellerID uint) (*response.SellerOrderDetailResponse, error)
 }
 
 type OrderService struct {
@@ -57,11 +60,11 @@ func (osv *OrderService) CreateOrder(ctx context.Context, userID uint, shippingA
 			return nil, fmt.Errorf("Product id not found: %v", err)
 		}
 
-		if (product.SellerID == userID) {
+		if product.SellerID == userID {
 			return nil, fmt.Errorf("Seller cannot buy your own product")
 		}
 
-		if (product.Quantity < item.Quantity) {
+		if product.Quantity < item.Quantity {
 			return nil, fmt.Errorf("%s not enough in stock", product.Name)
 		}
 	}
@@ -216,4 +219,87 @@ func (os *OrderService) GetOrderByID(ctx context.Context, orderID uint, userID u
 	}
 
 	return order, nil
+}
+
+func (os *OrderService) GetOrderBySellerID(ctx context.Context, sellerID uint) ([]response.SellerOrderResponse, error) {
+	orders, err := os.orderRepo.GetOrderBySellerID(ctx, sellerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve user orders: %w", err)
+	}
+
+	var sellerOrderResponse []response.SellerOrderResponse
+
+	for _, order := range orders {
+		productName := "Unknown Product"
+		if len(order.Items) > 0 {
+			productName = order.Items[0].Product.Name
+			if len(order.Items) > 1 {
+				productName = fmt.Sprintf("%s (+%d)", productName, len(order.Items)-1)
+			}
+		}
+		formattedDate := order.CreatedAt.Format("02/01/2006")
+
+		sellerOrderResponse = append(sellerOrderResponse, response.SellerOrderResponse{
+			ID:       order.ID,
+			Product:  productName,
+			Customer: order.ShippingAddress.ReceiverName,
+			Date:     formattedDate,
+			Amount:   order.TotalAmount,
+			Status:   order.Status,
+		})
+
+	}
+
+	return sellerOrderResponse, nil
+}
+
+func (s *OrderService) GetOrderDetailsBySellerID(ctx context.Context, orderID uint, sellerID uint) (*response.SellerOrderDetailResponse, error) {
+	order, err := s.orderRepo.GetOrderDetailsBySellerID(ctx, orderID, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	orderItems := []response.SellerOrderItemDTO{}
+	var sellerSubtotal float64 = 0;
+
+	for _, item := range order.Items {
+		itemTotal := item.PriceAtPurchase * float64(item.Quantity)
+		sellerSubtotal += itemTotal
+
+		orderItems = append(orderItems, response.SellerOrderItemDTO{
+            ProductID: item.ProductID,
+            Name:      item.Product.Name,
+            SKU:       item.Product.SKU,
+            ImageURL:  item.Product.ImageURL,
+            Price:     item.PriceAtPurchase,
+            Quantity:  item.Quantity,
+            Total:     itemTotal,
+        })
+	}
+
+	fullAddress := fmt.Sprintf("%s, %s, %s, %s %s",
+        order.ShippingAddress.StreetAddress,
+        order.ShippingAddress.SubDistrict,
+        order.ShippingAddress.District,
+        order.ShippingAddress.Province,
+        order.ShippingAddress.PostalCode,
+    )
+
+	res := &response.SellerOrderDetailResponse{
+        OrderID:  order.ID,
+        Status:   order.Status,
+        PlacedAt: order.CreatedAt.Format("January 02, 2006 at 03:04 PM"), 
+        CustomerInfo: response.CustomerInfoDTO{
+            Name:        order.ShippingAddress.ReceiverName,
+            PhoneNumber: order.ShippingAddress.PhoneNumber,
+            Email:       order.ShippingAddress.Email, 
+        },
+        ShippingAddress: response.ShippingAddressDTO{
+            AddressLine: fullAddress,
+        },
+        Items:          orderItems,
+        SellerSubtotal: sellerSubtotal,
+    }
+
+    return res, nil
 }
