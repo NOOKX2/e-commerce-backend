@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
+	"github.com/NOOKX2/e-commerce-backend/pkg/response"
 	"gorm.io/gorm"
 )
 
@@ -15,6 +16,8 @@ type OrderRepositoryInterface interface {
 	GetOrderById(ctx context.Context, orderID uint, userID uint) (*models.Order, error)
 	GetOrderBySellerID(ctx context.Context, sellerID uint) ([]models.Order, error)
 	GetOrderDetailsBySellerID(ctx context.Context, orderID uint, sellerID uint) (*models.Order, error)
+	GetCustomersBySellerID(ctx context.Context, sellerID uint) ([]response.SellerCustomerResponse, error)
+	GetCustomerOrdersForSeller(ctx context.Context, sellerID uint, customerID uint) ([]models.Order, error)
 }
 
 type orderRepository struct {
@@ -149,4 +152,52 @@ func (r *orderRepository) GetOrderDetailsBySellerID(ctx context.Context, orderID
 		}
 
 		return &order, nil
+}
+
+func (r *orderRepository) GetCustomersBySellerID(ctx context.Context, sellerID uint) ([]response.SellerCustomerResponse, error) {
+	var customers []response.SellerCustomerResponse
+
+	if err := r.db.WithContext(ctx).Table("orders").
+		Select(`
+			orders.user_id as id, 
+			MAX(orders.shipping_receiver_name) as name, 
+			MAX(orders.shipping_email) as email, 
+			COUNT(DISTINCT orders.id) as total_orders, 
+			SUM(order_items.price_at_purchase * order_items.quantity) as total_spent, 
+			MAX(orders.created_at) as last_order_date, 
+			MAX(orders.shipping_province) as location,
+			'Active' as status
+		`).
+		Joins("JOIN order_items ON order_items.order_id = orders.id").
+		Joins("JOIN products ON products.id = order_items.product_id").
+		Where("products.seller_id = ?", sellerID).
+		Group("orders.user_id").
+		Scan(&customers).Error; err != nil {
+			return nil, err
+		}
+		
+	return customers, nil
+}
+
+func (r *orderRepository) GetCustomerOrdersForSeller(ctx context.Context, sellerID uint, customerID uint) ([]models.Order, error) {
+	var orders []models.Order
+
+	if err := r.db.WithContext(ctx).
+		Distinct("orders.*").
+		Joins("JOIN order_items ON order_items.order_id = orders.id").
+		Joins("JOIN products ON products.id = order_items.product_id").
+
+		Where("orders.user_id = ? AND products.seller_id = ?", customerID, sellerID).
+
+		Preload("Items", func(db *gorm.DB) *gorm.DB {
+			return db.Joins("JOIN products ON products.id = order_items.product_id").
+				Where("products.seller_id = ?", sellerID)
+		}).
+
+		Order("orders.created_at DESC").
+		Find(&orders).Error; err != nil {
+			return nil, err
+		}
+	
+	return orders, nil
 }

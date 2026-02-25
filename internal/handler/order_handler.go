@@ -212,3 +212,57 @@ func (h *OrderHandler) GetSellerOrderDetails(c *fiber.Ctx) error {
         "data":    orderDetail,
     })
 }
+
+func (h *OrderHandler) GetSellerCustomers(c *fiber.Ctx) error {
+	sellerID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unauthorized access",
+		})
+	}
+
+	customers, err := h.OrderService.GetCustomersBySellerID(c.Context(), sellerID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   "Failed to fetch customers: " + err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    customers,
+	})
+}
+
+func (h *OrderHandler) GetCustomerDetail(c *fiber.Ctx) error {
+	customerID, err := c.ParamsInt("id")
+	if err != nil || customerID <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid customer ID",
+		})
+	}
+
+	sellerID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unauthorized access",
+		})
+	}
+
+	customerDetail, err := h.OrderService.GetCustomerDetailBySellerID(c.Context(), sellerID, uint(customerID))
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error":   err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"data":    customerDetail,
+	})
+}

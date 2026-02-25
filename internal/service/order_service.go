@@ -25,6 +25,8 @@ type OrderServiceInterface interface {
 	GetOrderByID(ctx context.Context, orderID uint, userID uint) (*models.Order, error)
 	GetOrderBySellerID(ctx context.Context, sellerID uint) ([]response.SellerOrderResponse, error)
 	GetOrderDetailsBySellerID(ctx context.Context, orderID uint, sellerID uint) (*response.SellerOrderDetailResponse, error)
+	GetCustomersBySellerID(ctx context.Context, sellerID uint) ([]response.SellerCustomerResponse, error)
+	GetCustomerDetailBySellerID(ctx context.Context, sellerID uint, customerID uint) (*response.CustomerDetailResponse, error)
 }
 
 type OrderService struct {
@@ -302,4 +304,71 @@ func (s *OrderService) GetOrderDetailsBySellerID(ctx context.Context, orderID ui
     }
 
     return res, nil
+}
+
+func (s *OrderService) GetCustomersBySellerID(ctx context.Context, sellerID uint) ([]response.SellerCustomerResponse, error) {
+	customers, err := s.orderRepo.GetCustomersBySellerID(ctx, sellerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if customers == nil {
+		customers = []response.SellerCustomerResponse{}
+	}
+
+	return customers, nil
+}
+
+func (s *OrderService) GetCustomerDetailBySellerID(ctx context.Context, sellerID uint, customerID uint) (*response.CustomerDetailResponse, error) {
+	orders, err := s.orderRepo.GetCustomerOrdersForSeller(ctx, sellerID, customerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(orders) == 0 {
+		return nil, errors.New("customer not found or has no orders with this seller")
+	}
+
+	var totalSpent float64 = 0
+	var orderHistory []response.CustomerOrder
+
+	for _, order := range orders {
+		var orderTotal float64 = 0
+		var itemsCount int = 0
+
+		for _, item := range order.Items {
+			orderTotal += item.PriceAtPurchase * float64(item.Quantity)
+			itemsCount += int(item.Quantity)
+		}
+
+		totalSpent += orderTotal
+
+		orderHistory = append(orderHistory, response.CustomerOrder{
+			OrderID:    order.ID,
+			Date:       order.CreatedAt.Format("Jan 02, 2006"), 
+			Total:      orderTotal,
+			Status:     order.Status,
+			ItemsCount: itemsCount,
+		})
+	}
+
+	latestOrder := orders[0]
+	firstOrder := orders[len(orders)-1]
+
+	fullLocation := fmt.Sprintf("%s, %s", latestOrder.ShippingAddress.Province, latestOrder.ShippingAddress.PostalCode)
+
+	res := &response.CustomerDetailResponse{
+		ID:           customerID,
+		Name:         latestOrder.ShippingAddress.ReceiverName,
+		Email:        latestOrder.ShippingAddress.Email, 
+		PhoneNumber:  latestOrder.ShippingAddress.PhoneNumber,
+		Location:     fullLocation,
+		JoinedDate:   firstOrder.CreatedAt.Format("January 02, 2006"),
+		TotalSpent:   totalSpent,
+		TotalOrders:  len(orders),
+		Status:       "Active", 
+		OrderHistory: orderHistory,
+	}
+
+	return res, nil
 }

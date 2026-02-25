@@ -48,6 +48,8 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	seller.Get("/products", productHandler.GetProductsBySellerID)
 	seller.Get("/orders", orderHandler.GetOrderBySellerID)
 	seller.Get("/orders/:id", orderHandler.GetSellerOrderDetails)
+	seller.Get("/customers", orderHandler.GetSellerCustomers)
+	seller.Get("/customers/:id", orderHandler.GetCustomerDetail)
 	seller.Post("/products", productHandler.AddProduct)
 	seller.Put("/products/:sku", productHandler.UpdateProductBySKU)
 	seller.Delete("/products/:sku", productHandler.DeleteProduct)
