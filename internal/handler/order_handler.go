@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
@@ -162,7 +163,19 @@ func(h *OrderHandler) GetOrderBySellerID(c *fiber.Ctx) error {
 		})
 	}
 
-	orders, err := h.OrderService.GetOrderBySellerID(c.Context(), sellerID)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+
+	search := c.Query("search", "")
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	orders, meta, err := h.OrderService.GetOrderBySellerID(c.Context(), sellerID, page, limit, search)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -171,8 +184,9 @@ func(h *OrderHandler) GetOrderBySellerID(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
+		"status": true,
 		"data":   orders,
+		"meta":   meta,
 	})
 }
 
@@ -222,7 +236,18 @@ func (h *OrderHandler) GetSellerCustomers(c *fiber.Ctx) error {
 		})
 	}
 
-	customers, err := h.OrderService.GetCustomersBySellerID(c.Context(), sellerID)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	search := c.Query("search", "")
+
+	customers, meta, err := h.OrderService.GetCustomersBySellerID(c.Context(), sellerID, page, limit, search)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -231,8 +256,9 @@ func (h *OrderHandler) GetSellerCustomers(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"success": true,
+		"status": true,
 		"data":    customers,
+		"meta":    meta,
 	})
 }
 
@@ -265,4 +291,27 @@ func (h *OrderHandler) GetCustomerDetail(c *fiber.Ctx) error {
 		"success": true,
 		"data":    customerDetail,
 	})
+}
+
+func (h *OrderHandler) GetDashboardSummary(c *fiber.Ctx) error {
+	sellerID, err := utils.GetUserIDFromContext(c)
+    if err != nil {
+        return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+            "success": false,
+            "message": "Unauthorized",
+        })
+    }
+
+	summary, err := h.OrderService.GetDashboardSummary(c.Context(), sellerID)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": err.Error(),
+        })
+    }
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+        "success": true,
+        "data":    summary,
+    })
 }

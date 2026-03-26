@@ -45,6 +45,7 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	admin.Get("/dashboard", adminHandler.GetDashboard)
 
 	seller := v1.Group("/seller", middleware.Authentication(config), middleware.RoleRequired("seller"))
+	seller.Get("/", orderHandler.GetDashboardSummary)
 	seller.Get("/products", productHandler.GetProductsBySellerID)
 	seller.Get("/orders", orderHandler.GetOrderBySellerID)
 	seller.Get("/orders/:id", orderHandler.GetSellerOrderDetails)

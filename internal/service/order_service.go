@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -23,10 +24,11 @@ type OrderServiceInterface interface {
 	GetAllOrders(ctx context.Context) ([]models.Order, error)
 	GetUserOrders(ctx context.Context, userID uint) ([]models.Order, error)
 	GetOrderByID(ctx context.Context, orderID uint, userID uint) (*models.Order, error)
-	GetOrderBySellerID(ctx context.Context, sellerID uint) ([]response.SellerOrderResponse, error)
+	GetOrderBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]response.SellerOrderResponse, map[string]interface{}, error)
 	GetOrderDetailsBySellerID(ctx context.Context, orderID uint, sellerID uint) (*response.SellerOrderDetailResponse, error)
-	GetCustomersBySellerID(ctx context.Context, sellerID uint) ([]response.SellerCustomerResponse, error)
+	GetCustomersBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]response.SellerCustomerResponse, map[string]interface{}, error)
 	GetCustomerDetailBySellerID(ctx context.Context, sellerID uint, customerID uint) (*response.CustomerDetailResponse, error)
+	GetDashboardSummary(ctx context.Context, sellerID uint) (map[string]interface{}, error)
 }
 
 type OrderService struct {
@@ -177,7 +179,16 @@ func (osv *OrderService) CreateOrder(ctx context.Context, userID uint, shippingA
 			UserID:                userID,
 			Status:                "complete",
 			TotalAmount:           totalAmount,
-			ShippingAddress:       *shippingAddress,
+
+			ShippingEmail:         shippingAddress.Email,
+            ShippingReceiverName:  shippingAddress.ReceiverName,
+            ShippingPhoneNumber:   shippingAddress.PhoneNumber,
+            ShippingStreetAddress: shippingAddress.StreetAddress,
+            ShippingSubDistrict:   shippingAddress.SubDistrict,
+            ShippingDistrict:      shippingAddress.District,
+            ShippingProvince:      shippingAddress.Province,
+            ShippingPostalCode:    shippingAddress.PostalCode,
+
 			UserCardID:            userCardID,
 			StripePaymentIntentID: &paymentIntent.ID,
 			Items:                 processedItems,
@@ -223,14 +234,24 @@ func (os *OrderService) GetOrderByID(ctx context.Context, orderID uint, userID u
 	return order, nil
 }
 
-func (os *OrderService) GetOrderBySellerID(ctx context.Context, sellerID uint) ([]response.SellerOrderResponse, error) {
-	orders, err := os.orderRepo.GetOrderBySellerID(ctx, sellerID)
+func (os *OrderService) GetOrderBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]response.SellerOrderResponse, map[string]interface{}, error) {
+	orders, total, err := os.orderRepo.GetOrderBySellerIDPaginated(ctx, sellerID, page, limit, search)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve user orders: %w", err)
+		return nil, nil, fmt.Errorf("failed to retrieve user orders: %w", err)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+	meta := map[string]interface{}{
+		"total_pages":  totalPages,
+		"current_page": page,
+		"total_items":  total,
+	}
+
+	if orders == nil {
+		return []response.SellerOrderResponse{}, meta, nil
 	}
 
 	var sellerOrderResponse []response.SellerOrderResponse
-
 	for _, order := range orders {
 		productName := "Unknown Product"
 		if len(order.Items) > 0 {
@@ -244,15 +265,14 @@ func (os *OrderService) GetOrderBySellerID(ctx context.Context, sellerID uint) (
 		sellerOrderResponse = append(sellerOrderResponse, response.SellerOrderResponse{
 			ID:       order.ID,
 			Product:  productName,
-			Customer: order.ShippingAddress.ReceiverName,
+			Customer: order.ShippingReceiverName,
 			Date:     formattedDate,
 			Amount:   order.TotalAmount,
 			Status:   order.Status,
 		})
-
 	}
 
-	return sellerOrderResponse, nil
+	return sellerOrderResponse, meta, nil
 }
 
 func (s *OrderService) GetOrderDetailsBySellerID(ctx context.Context, orderID uint, sellerID uint) (*response.SellerOrderDetailResponse, error) {
@@ -280,11 +300,11 @@ func (s *OrderService) GetOrderDetailsBySellerID(ctx context.Context, orderID ui
 	}
 
 	fullAddress := fmt.Sprintf("%s, %s, %s, %s %s",
-        order.ShippingAddress.StreetAddress,
-        order.ShippingAddress.SubDistrict,
-        order.ShippingAddress.District,
-        order.ShippingAddress.Province,
-        order.ShippingAddress.PostalCode,
+        order.ShippingStreetAddress,
+        order.ShippingSubDistrict,
+        order.ShippingDistrict,
+        order.ShippingProvince,
+        order.ShippingPostalCode,
     )
 
 	res := &response.SellerOrderDetailResponse{
@@ -292,9 +312,9 @@ func (s *OrderService) GetOrderDetailsBySellerID(ctx context.Context, orderID ui
         Status:   order.Status,
         PlacedAt: order.CreatedAt.Format("January 02, 2006 at 03:04 PM"), 
         CustomerInfo: response.CustomerInfoDTO{
-            Name:        order.ShippingAddress.ReceiverName,
-            PhoneNumber: order.ShippingAddress.PhoneNumber,
-            Email:       order.ShippingAddress.Email, 
+            Name:        order.ShippingReceiverName,
+            PhoneNumber: order.ShippingPhoneNumber,
+            Email:       order.ShippingEmail, 
         },
         ShippingAddress: response.ShippingAddressDTO{
             AddressLine: fullAddress,
@@ -306,17 +326,24 @@ func (s *OrderService) GetOrderDetailsBySellerID(ctx context.Context, orderID ui
     return res, nil
 }
 
-func (s *OrderService) GetCustomersBySellerID(ctx context.Context, sellerID uint) ([]response.SellerCustomerResponse, error) {
-	customers, err := s.orderRepo.GetCustomersBySellerID(ctx, sellerID)
+func (s *OrderService) GetCustomersBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]response.SellerCustomerResponse, map[string]interface{}, error) {
+	customers, total, err := s.orderRepo.GetCustomersBySellerIDPaginated(ctx, sellerID, page, limit, search)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+	meta := map[string]interface{}{
+		"total_pages":  totalPages,
+		"current_page": page,
+		"total_items":  total,
 	}
 
 	if customers == nil {
 		customers = []response.SellerCustomerResponse{}
 	}
 
-	return customers, nil
+	return customers, meta, nil
 }
 
 func (s *OrderService) GetCustomerDetailBySellerID(ctx context.Context, sellerID uint, customerID uint) (*response.CustomerDetailResponse, error) {
@@ -355,13 +382,13 @@ func (s *OrderService) GetCustomerDetailBySellerID(ctx context.Context, sellerID
 	latestOrder := orders[0]
 	firstOrder := orders[len(orders)-1]
 
-	fullLocation := fmt.Sprintf("%s, %s", latestOrder.ShippingAddress.Province, latestOrder.ShippingAddress.PostalCode)
+	fullLocation := fmt.Sprintf("%s, %s", latestOrder.ShippingProvince, latestOrder.ShippingPostalCode)
 
 	res := &response.CustomerDetailResponse{
 		ID:           customerID,
-		Name:         latestOrder.ShippingAddress.ReceiverName,
-		Email:        latestOrder.ShippingAddress.Email, 
-		PhoneNumber:  latestOrder.ShippingAddress.PhoneNumber,
+		Name:         latestOrder.ShippingReceiverName,
+		Email:        latestOrder.ShippingEmail, 
+		PhoneNumber:  latestOrder.ShippingPhoneNumber,
 		Location:     fullLocation,
 		JoinedDate:   firstOrder.CreatedAt.Format("January 02, 2006"),
 		TotalSpent:   totalSpent,
@@ -371,4 +398,15 @@ func (s *OrderService) GetCustomerDetailBySellerID(ctx context.Context, sellerID
 	}
 
 	return res, nil
+}
+
+func (s *OrderService) GetDashboardSummary(ctx context.Context, sellerID uint) (map[string]interface{}, error) {
+    // เรียกใช้ Repository
+    summary, err := s.orderRepo.GetSellerDashboardSummary(ctx, sellerID)
+    if err != nil {
+        return nil, err
+    }
+
+    // คุณสามารถเพิ่ม Logic คำนวณเปอร์เซ็นต์การเติบโตตรงนี้ได้ในอนาคต
+    return summary, nil
 }

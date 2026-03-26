@@ -48,8 +48,20 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 	query := r.db.Model(&models.Product{})
 
 	if category != "" {
-		categories := strings.Split(category, ",")
-		query = query.Where("category IN ?", categories)
+		parts := strings.Split(category, ",")
+		ids := make([]uint, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p == "" {
+				continue
+			}
+			if id, err := strconv.ParseUint(p, 10, 32); err == nil {
+				ids = append(ids, uint(id))
+			}
+		}
+		if len(ids) > 0 {
+			query = query.Where("category_id IN ?", ids)
+		}
 	}
 
 	if price != "" {
@@ -82,6 +94,7 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 	}
 
 	query = query.Limit(int(limit)).Offset(int(offset))
+	query = query.Preload("Category")
 
 	if err := query.Where("status = ?", "active").Find(&products).Error; err != nil {
 		return nil, 0, err
@@ -176,30 +189,37 @@ func (r *productRepository) RemoveFromStock(ctx context.Context, id uint, amount
 }
 
 func (r *productRepository) GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, int64, error) {
-	var products []models.Product
-	var total int64
-	offset := (page - 1) * limit
+    var products []models.Product
+    var total int64
+    offset := (page - 1) * limit
 
-	query := r.db.WithContext(ctx).Model(&models.Product{}).Where("seller_id = ?", sellerID)
+    baseQuery := r.db.WithContext(ctx).Model(&models.Product{}).
+        Joins("LEFT JOIN categories ON categories.id = products.category_id").
+        Where("products.seller_id = ?", sellerID)
 
-	if search != "" {
-		query = query.Where("LOWER(name) LIKE ?", "%"+strings.ToLower(search)+"%")
-	}
+    if search != "" {
+        searchTerm := "%" + strings.ToLower(search) + "%"
+    
+        baseQuery = baseQuery.Where("(LOWER(products.name) LIKE ? OR LOWER(categories.name) LIKE ?)", searchTerm, searchTerm)
+    }
 
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+   
+    if err := baseQuery.Count(&total).Error; err != nil {
+        return nil, 0, err
+    }
 
-	result := query.Preload("Category").Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&products)
+ 
+    err := baseQuery.Preload("Category").
+        Order("products.created_at DESC").
+        Limit(limit).
+        Offset(offset).
+        Find(&products).Error
 
-	if result.Error != nil {
-		return nil, 0, result.Error
-	}
+    if err != nil {
+        return nil, 0, err
+    }
 
-	return products, total, nil
+    return products, total, nil
 }
 
 func (r *productRepository) GetOrCreateCategory(ctx context.Context, name string, slug string) (uint, error) {
