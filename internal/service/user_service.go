@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
@@ -16,6 +17,7 @@ type UserServiceInterface interface {
 	Login(email, password string) (string, *models.User, error)
 	GetUserByID(id uint) (*models.User, error)
 	UpdateStripeCustomerID(ctx context.Context, userID uint, stripeCustomerID string) error
+	UpdateProfile(userID uint, name, email string) (*models.User, error)
 }
 
 type UserService struct {
@@ -104,4 +106,27 @@ func (s *UserService) UpdateStripeCustomerID(ctx context.Context, userID uint, s
 	}
 
 	return nil
+}
+
+func (s *UserService) UpdateProfile(userID uint, name, email string) (*models.User, error) {
+	name = strings.TrimSpace(name)
+	email = strings.TrimSpace(strings.ToLower(email))
+	if name == "" {
+		return nil, errors.New("name is required")
+	}
+	if email == "" {
+		return nil, errors.New("email is required")
+	}
+
+	if err := s.userRepo.UpdateProfile(userID, name, email); err != nil {
+		if err.Error() == "email already in use" {
+			return nil, err
+		}
+		if err.Error() == "user not found" {
+			return nil, err
+		}
+		return nil, err
+	}
+
+	return s.userRepo.GetUserByID(userID)
 }

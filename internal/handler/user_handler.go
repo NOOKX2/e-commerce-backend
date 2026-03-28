@@ -8,6 +8,7 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
 	"github.com/NOOKX2/e-commerce-backend/pkg/response"
 	"github.com/NOOKX2/e-commerce-backend/pkg/utils"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -140,5 +141,60 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 		"success": true,
 		"message":  "Get user by ID successful",
 		"response": response,
+	})
+}
+
+func (h *UserHandler) UpdateProfile(c *fiber.Ctx) error {
+	userID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+	}
+
+	var req request.UpdateProfileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "invalid request body",
+		})
+	}
+	if err := validator.New().Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "validation failed: " + err.Error(),
+		})
+	}
+
+	user, err := h.userService.UpdateProfile(userID, req.Name, req.Email)
+	if err != nil {
+		status := fiber.StatusInternalServerError
+		switch err.Error() {
+		case "email already in use":
+			status = fiber.StatusConflict
+		case "user not found":
+			status = fiber.StatusNotFound
+		case "name is required", "email is required":
+			status = fiber.StatusBadRequest
+		}
+		return c.Status(status).JSON(fiber.Map{"success": false, "error": err.Error()})
+	}
+
+	if user == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "user not found"})
+	}
+
+	resp := response.UserResponse{
+		ID:    user.ID,
+		Email: user.Email,
+		Name:  user.Name,
+		Role:  string(user.Role),
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Profile updated",
+		"response": resp,
 	})
 }

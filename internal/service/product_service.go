@@ -34,6 +34,7 @@ type ProductServiceInterface interface {
 	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, int64, error)
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
+	GetProductBySlugForSeller(ctx context.Context, slug string, sellerID uint) (*models.Product, error)
 	UpdateProduct(ctx context.Context, productID uint, sellerID uint, productReq *request.UpdateProductRequest) (*models.Product, error)
 	DeleteProduct(ctx context.Context, sku string, sellerID uint) error
 	AddToStock(ctx context.Context, id uint, amount uint) error
@@ -44,14 +45,16 @@ type ProductServiceInterface interface {
 }
 
 type ProductService struct {
-	repo          repository.ProductRepositoryInterface
-	uploadService UploadService
+	repo           repository.ProductRepositoryInterface
+	uploadService  UploadService
+	settingsRepo   repository.SettingsRepositoryInterface
 }
 
-func NewProductService(repo repository.ProductRepositoryInterface, uploadService UploadService) *ProductService {
+func NewProductService(repo repository.ProductRepositoryInterface, uploadService UploadService, settingsRepo repository.SettingsRepositoryInterface) *ProductService {
 	return &ProductService{
 		repo:          repo,
 		uploadService: uploadService,
+		settingsRepo:  settingsRepo,
 	}
 }
 
@@ -143,6 +146,13 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		return nil, err
 	}
 
+	status := models.StatusActive
+	if manual, err := s.settingsRepo.IsManualProductApprovalEnabled(ctx); err == nil && manual {
+		status = models.StatusPending
+	} else if err != nil {
+		return nil, fmt.Errorf("platform settings: %w", err)
+	}
+
 	product := &models.Product{
 		Name:           input.Name,
 		NormalizedName: normalizedName,
@@ -156,6 +166,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		Quantity:       input.Quantity,
 		CostPrice:      input.CostPrice,
 		ImageHash:      input.ImageHash,
+		Status:         status,
 	}
 	if err := s.repo.Create(ctx, product); err != nil {
 		return nil, err
@@ -208,12 +219,23 @@ func (s *ProductService) GetProductByID(ctx context.Context, id uint) (*models.P
 }
 
 func (s *ProductService) GetProductBySlug(ctx context.Context, slug string) (*models.Product, error) {
-	product, err := s.repo.GetProductBySlug(ctx, slug)
+	product, err := s.repo.GetActiveProductBySlug(ctx, slug)
 
 	if err != nil {
 		return nil, err
 	}
 
+	return product, nil
+}
+
+func (s *ProductService) GetProductBySlugForSeller(ctx context.Context, slug string, sellerID uint) (*models.Product, error) {
+	product, err := s.repo.GetProductBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+	if product.SellerID != sellerID {
+		return nil, ErrForbidden
+	}
 	return product, nil
 }
 

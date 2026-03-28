@@ -16,6 +16,7 @@ type ProductRepositoryInterface interface {
 	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, int64, error)
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
+	GetActiveProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	UpdateProduct(product *models.Product) error
 	DeleteProduct(sku string) error
 	GetProductBySKU(ctx context.Context, sku string) (*models.Product, error)
@@ -123,6 +124,17 @@ func (r *productRepository) GetProductBySlug(ctx context.Context, slug string) (
 		return nil, err
 	}
 
+	return &product, nil
+}
+
+func (r *productRepository) GetActiveProductBySlug(ctx context.Context, slug string) (*models.Product, error) {
+	var product models.Product
+	err := r.db.Preload("Category").WithContext(ctx).
+		Where("slug = ? AND status = ?", slug, models.StatusActive).
+		First(&product).Error
+	if err != nil {
+		return nil, err
+	}
 	return &product, nil
 }
 

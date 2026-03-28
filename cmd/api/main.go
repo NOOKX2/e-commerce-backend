@@ -35,7 +35,18 @@ func main() {
 		log.Fatalf("Fatal error: database connection failed: %v", err)
 	}
 
-	if err := dbConnection.AutoMigrate(&models.User{}, &models.Product{}, &models.Order{}, &models.OrderItem{}, &models.ShippingAddress{}, &models.UserCard{}, &models.Media{}); err != nil {
+	if err := dbConnection.AutoMigrate(
+		&models.User{},
+		&models.Category{},
+		&models.Product{},
+		&models.Order{},
+		&models.OrderItem{},
+		&models.ShippingAddress{},
+		&models.UserCard{},
+		&models.Media{},
+		&models.PlatformSetting{},
+		&models.SellerShop{},
+	); err != nil {
 		log.Fatalf("failed to run auto-migrations: %v", err)
 	}
 
@@ -48,10 +59,20 @@ func main() {
 	userHandler := handler.NewUserHandler(userService)
 
 	sellerHandler := handler.NewSellerHandler()
-	adminHandler := handler.NewAdminHandler()
+	adminRepository := repository.NewAdminRepository(dbConnection)
+	adminService := service.NewAdminService(adminRepository)
+	adminHandler := handler.NewAdminHandler(adminService)
+
+	categoryRepository := repository.NewCategoryRepository(dbConnection)
+	categoryService := service.NewCategoryService(categoryRepository)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+
+	settingsRepository := repository.NewSettingsRepository(dbConnection)
+	settingsService := service.NewSettingsService(settingsRepository)
+	settingsHandler := handler.NewSettingsHandler(settingsService)
 
 	productRepository := repository.NewProductRepository(dbConnection)
-	productService := service.NewProductService(productRepository, uploadService)
+	productService := service.NewProductService(productRepository, uploadService, settingsRepository)
 	productHandler := handler.NewProductHandler(productService)
 
 	userCardRepository := repository.NewUserCardRepository(dbConnection)
@@ -73,7 +94,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, userCardHandler, uploadHandler, config)
+	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, userCardHandler, uploadHandler, categoryHandler, settingsHandler, config)
 
 	log.Printf("Server is starting on port %s", config.ApiPort)
 	err = app.Listen(":" + config.ApiPort)

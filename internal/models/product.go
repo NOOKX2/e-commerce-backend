@@ -16,7 +16,7 @@ type Product struct {
     CategoryID     uint          `json:"categoryID" gorm:"index"`
     Category       Category      `json:"category" gorm:"foreignKey:CategoryID"`
     SellerID       uint          `json:"sellerId" gorm:"index"` 
-    Seller         User          `json:"-" gorm:"foreignKey:SellerID"`
+    Seller         User          `json:"seller" gorm:"foreignKey:SellerID"`
     
     // SEO & Inventory
     Slug           string        `json:"slug" gorm:"uniqueIndex;not null"`
@@ -39,4 +39,5 @@ const (
 	StatusInactive ProductStatus = "inactive"
 	StatusDraft    ProductStatus = "draft"
 	StatusArchived ProductStatus = "archived"
+	StatusPending  ProductStatus = "pending" // Awaiting admin approval
 )

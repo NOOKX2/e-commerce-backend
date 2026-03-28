@@ -23,3 +23,4 @@ func RoleRequired(requiredRole string) fiber.Handler {
 		return c.Next()
 	}
 }
+
