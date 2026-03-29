@@ -9,5 +9,7 @@ var (
 	ErrUserExisted       = errors.New("user email aleady existed")
 	ErrUserNotFound      = errors.New("user email not found")
 	ErrPasswordIncorrect = errors.New("password incorrect")
+	ErrAccountSuspended  = errors.New("account suspended")
+	ErrAccountBanned     = errors.New("account banned")
 	ErrOrderNotFound     = errors.New("order not found")
 )

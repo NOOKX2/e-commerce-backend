@@ -53,9 +53,14 @@ func (osv *OrderService) CreateOrder(ctx context.Context, userID uint, shippingA
 	}
 
 	user, err := osv.userService.GetUserByID(userID)
-
 	if err != nil {
 		return nil, fmt.Errorf("User id not found: %v", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+	if user.Status == models.UserStatusSuspended {
+		return nil, ErrAccountSuspended
 	}
 
 	for _, item := range items {

@@ -64,6 +64,13 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		req.SavedCreditCard,
 	)
 	if err != nil {
+		if errors.Is(err, service.ErrAccountSuspended) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success":   false,
+				"error":     "your account is suspended",
+				"errorType": "account_suspended",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"error":   err.Error(),

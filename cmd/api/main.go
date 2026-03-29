@@ -94,7 +94,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, userCardHandler, uploadHandler, categoryHandler, settingsHandler, config)
+	api.SetupRoutes(app, userHandler, sellerHandler, adminHandler, productHandler, orderHandler, userCardHandler, uploadHandler, categoryHandler, settingsHandler, userRepository, config)
 
 	log.Printf("Server is starting on port %s", config.ApiPort)
 	err = app.Listen(":" + config.ApiPort)

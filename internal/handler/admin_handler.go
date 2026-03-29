@@ -4,8 +4,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/NOOKX2/e-commerce-backend/internal/models"
 	"github.com/NOOKX2/e-commerce-backend/internal/service"
 	"github.com/NOOKX2/e-commerce-backend/pkg/request"
+	"github.com/NOOKX2/e-commerce-backend/pkg/utils"
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 )
@@ -80,6 +82,19 @@ func (h *AdminHandler) UpdateUserStatus(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation failed: " + err.Error()})
 	}
 
+	adminID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "unauthorized"})
+	}
+
+	st := strings.ToLower(strings.TrimSpace(req.Status))
+	if uint(userID) == adminID && (st == string(models.UserStatusSuspended) || st == string(models.UserStatusBanned)) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error":   "cannot suspend or ban your own account",
+		})
+	}
+
 	if err := h.AdminService.UpdateUserStatus(c.Context(), uint(userID), req.Status); err != nil {
 		status := fiber.StatusInternalServerError
 		if err.Error() == "invalid user status" {
@@ -126,6 +141,17 @@ func (h *AdminHandler) UpdateUserDetails(c *fiber.Ctx) error {
 	// ตรวจสอบ Validation (ชื่อห้ามว่าง, Role/Status ต้องตรงตามที่กำหนด)
 	if err := validator.New().Struct(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"success": false, "error": "validation failed: " + err.Error()})
+	}
+
+	adminID, err := utils.GetUserIDFromContext(c)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"success": false, "error": "unauthorized"})
+	}
+	if uint(userID) == adminID && (req.Status == models.UserStatusSuspended || req.Status == models.UserStatusBanned) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"error":   "cannot suspend or ban your own account",
+		})
 	}
 
 	if err := h.AdminService.UpdateUserDetails(c.Context(), uint(userID), req); err != nil {

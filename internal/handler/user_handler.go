@@ -43,9 +43,11 @@ func (h *UserHandler) Register(c *fiber.Ctx) error {
 	}
 
 	registerResponse := response.UserResponse{
-		ID:    createdUser.ID,
-		Email: createdUser.Email,
-		Name:  createdUser.Name,
+		ID:     createdUser.ID,
+		Email:  createdUser.Email,
+		Name:   createdUser.Name,
+		Role:   string(createdUser.Role),
+		Status: string(createdUser.Status),
 	}
 	fmt.Println(registerResponse)
 
@@ -80,6 +82,14 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 				"message": "Password incorrect",
 			})
 		}
+
+		if errors.Is(err, service.ErrAccountBanned) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success":   false,
+				"errorType": "account_banned",
+				"message":   "This account has been banned.",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"error": err.Error(),
@@ -91,10 +101,11 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 
 	
 	 userResponse := response.UserResponse{
-	 	ID:    user.ID,
-	 	Name:  user.Name, 
-	 	Email: user.Email,
-	 	Role:  string(user.Role),
+	 	ID:     user.ID,
+	 	Name:   user.Name,
+	 	Email:  user.Email,
+	 	Role:   string(user.Role),
+	 	Status: string(user.Status),
 	 }
 	
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -131,10 +142,11 @@ func (h *UserHandler) GetUserProfile(c *fiber.Ctx) error {
 	}
 
 	response := response.UserResponse{
-		ID:    user.ID,
-		Email: user.Email,
-		Name:  user.Name,
-		Role:  string(user.Role),
+		ID:     user.ID,
+		Email:  user.Email,
+		Name:   user.Name,
+		Role:   string(user.Role),
+		Status: string(user.Status),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -186,10 +198,11 @@ func (h *UserHandler) UpdateProfile(c *fiber.Ctx) error {
 	}
 
 	resp := response.UserResponse{
-		ID:    user.ID,
-		Email: user.Email,
-		Name:  user.Name,
-		Role:  string(user.Role),
+		ID:     user.ID,
+		Email:  user.Email,
+		Name:   user.Name,
+		Role:   string(user.Role),
+		Status: string(user.Status),
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{

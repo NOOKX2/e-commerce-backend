@@ -82,6 +82,10 @@ func (s *UserService) Login(email, password string) (string, *models.User, error
 		return "", nil, ErrPasswordIncorrect
 	}
 
+	if user.Status == models.UserStatusBanned {
+		return "", nil, ErrAccountBanned
+	}
+
 	token, err := utils.GenerateToken(user, s.config.JWTSecret)
 	if err != nil {
 		return "", nil, err

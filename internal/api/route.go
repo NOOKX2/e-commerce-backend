@@ -4,10 +4,11 @@ import (
 	"github.com/NOOKX2/e-commerce-backend/configs"
 	"github.com/NOOKX2/e-commerce-backend/internal/api/middleware"
 	"github.com/NOOKX2/e-commerce-backend/internal/handler"
+	"github.com/NOOKX2/e-commerce-backend/internal/repository"
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler *handler.SellerHandler, adminHandler *handler.AdminHandler, productHandler *handler.ProductHandler, orderHandler *handler.OrderHandler, userCardHandler *handler.UserCardHandler, uploadHandler *handler.UploadHandler, categoryHandler *handler.CategoryHandler, settingsHandler *handler.SettingsHandler, config *configs.Config) {
+func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler *handler.SellerHandler, adminHandler *handler.AdminHandler, productHandler *handler.ProductHandler, orderHandler *handler.OrderHandler, userCardHandler *handler.UserCardHandler, uploadHandler *handler.UploadHandler, categoryHandler *handler.CategoryHandler, settingsHandler *handler.SettingsHandler, userRepo repository.UserRepositoryInterface, config *configs.Config) {
 	v1 := app.Group("/api/v1")
 
 	v1.Get("/", func(c *fiber.Ctx) error {
@@ -25,7 +26,7 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	v1.Get("/categories", productHandler.GetCategories)
 	v1.Get("/platform/public", settingsHandler.GetPublicPlatformSnapshot)
 
-	authRequired := v1.Group("/", middleware.Authentication(config))
+	authRequired := v1.Group("/", middleware.Authentication(config, userRepo))
 	authRequired.Get("/profile", userHandler.GetUserProfile)
 	authRequired.Put("/profile", userHandler.UpdateProfile)
 
@@ -43,7 +44,7 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	cardRoute.Get("/", userCardHandler.GetCardByUserID)
 	cardRoute.Delete("/:cardID", userCardHandler.DeleteCard)
 
-	admin := v1.Group("/admin", middleware.Authentication(config), middleware.RoleRequired("admin"))
+	admin := v1.Group("/admin", middleware.Authentication(config, userRepo), middleware.RoleRequired("admin"))
 	admin.Get("/dashboard", adminHandler.GetDashboard)
 	admin.Post("/categories", categoryHandler.Create)
 	admin.Get("/categories", categoryHandler.List)
@@ -62,7 +63,7 @@ func SetupRoutes(app *fiber.App, userHandler *handler.UserHandler, sellerHandler
 	admin.Get("/settings/platform", settingsHandler.GetAdminPlatformSettings)
 	admin.Put("/settings/platform", settingsHandler.PutAdminPlatformSettings)
 
-	seller := v1.Group("/seller", middleware.Authentication(config), middleware.RoleRequired("seller"))
+	seller := v1.Group("/seller", middleware.Authentication(config, userRepo), middleware.RoleRequired("seller"))
 	seller.Get("/", orderHandler.GetDashboardSummary)
 	seller.Get("/products/slug/:slug", productHandler.GetSellerProductBySlug)
 	seller.Get("/products", productHandler.GetProductsBySellerID)

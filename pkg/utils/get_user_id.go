@@ -5,16 +5,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetUserIDFromContext(c *fiber.Ctx) (uint, error) {
-	rawUserID := c.Locals("user_id")
-
-	if rawUserID == nil {
+// ParseUserID converts a JWT claim or context value (e.g. float64 from MapClaims) to uint.
+func ParseUserID(v interface{}) (uint, error) {
+	if v == nil {
 		return 0, errors.New("user id not found in context")
 	}
 
 	var userID uint
 
-	switch v := rawUserID.(type) {
+	switch v := v.(type) {
 	case float64:
 		userID = uint(v)
 	case int:
@@ -32,4 +31,8 @@ func GetUserIDFromContext(c *fiber.Ctx) (uint, error) {
 	}
 
 	return userID, nil
+}
+
+func GetUserIDFromContext(c *fiber.Ctx) (uint, error) {
+	return ParseUserID(c.Locals("user_id"))
 }
