@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"time"
 
@@ -77,12 +76,13 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	categoryQuery := c.Query("category")
 	priceQuery := c.Query("price")
 	sortQuery := c.Query("sort")
-	pageQuery := c.Query("page", "1")
 	limitQuery := c.Query("limit", "12")
+	afterCursor := c.Query("cursor", "")
+	beforeCursor := c.Query("before", "")
 
 	limitInt, _ := strconv.Atoi(limitQuery)
 
-	products, total, err := h.ProductService.GetAllProduct(categoryQuery, priceQuery, sortQuery, pageQuery, limitQuery)
+	products, total, nextC, prevC, err := h.ProductService.GetAllProduct(categoryQuery, priceQuery, sortQuery, limitQuery, afterCursor, beforeCursor)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error loading products" + err.Error(),
@@ -90,7 +90,6 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 	}
 
 	productResponses := response.ToProductResponses(products)
-	totalPages := int(math.Ceil(float64(total) / float64(limitInt)))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"success": true,
@@ -98,8 +97,11 @@ func (h *ProductHandler) GetAllProduct(c *fiber.Ctx) error {
 		"data":    productResponses,
 		"meta": fiber.Map{
 			"total_items": total,
-			"total_pages": totalPages,
 			"limit":       limitInt,
+			"next_cursor": nextC,
+			"prev_cursor": prevC,
+			"has_next":    nextC != "",
+			"has_prev":    prevC != "",
 		},
 	})
 }
@@ -144,11 +146,14 @@ func (h *ProductHandler) GetProductBySlug(c *fiber.Ctx) error {
 	product, err := h.ProductService.GetProductBySlug(c.UserContext(), slug)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			fmt.Println("error here");
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"success": false,
 				"message": "Product not found " + err.Error(),
 			})
 		}
+
+		
 
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -270,11 +275,12 @@ func (h *ProductHandler) GetProductsBySellerID(c *fiber.Ctx) error {
 		})
 	}
 
-	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	search := c.Query("search", "")
+	afterCursor := c.Query("cursor", "")
+	beforeCursor := c.Query("before", "")
 
-	products, meta, err := h.ProductService.GetProductsBySellerID(ctx, sellerID, page, limit, search)
+	products, meta, err := h.ProductService.GetProductsBySellerID(ctx, sellerID, limit, search, afterCursor, beforeCursor)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": false,

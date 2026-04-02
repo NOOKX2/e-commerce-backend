@@ -72,7 +72,7 @@ func main() {
 	settingsHandler := handler.NewSettingsHandler(settingsService)
 
 	productRepository := repository.NewProductRepository(dbConnection)
-	productService := service.NewProductService(productRepository, uploadService, settingsRepository)
+	productService := service.NewProductService(productRepository, uploadService)
 	productHandler := handler.NewProductHandler(productService)
 
 	userCardRepository := repository.NewUserCardRepository(dbConnection)

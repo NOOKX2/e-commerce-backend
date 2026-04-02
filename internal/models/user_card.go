@@ -5,6 +5,7 @@ import "time"
 type UserCard struct {
 	ID                    uint      `gorm:"primaryKey" json:"id"`
 	UserID                uint      `gorm:"not null;index" json:"user_id"`
+	User                  User      `gorm:"foreignKey:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"-"`
 	CardUniqueKey         string    `json:"card_unique_key" gorm:"index:idx_user_card_key"`
 	StripePaymentMethodID string    `gorm:"unique;not null" json:"payment_method_id"`
 	CardBrand             string    `json:"brand"`

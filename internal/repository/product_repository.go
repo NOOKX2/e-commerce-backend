@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"github.com/NOOKX2/e-commerce-backend/internal/models"
+	"github.com/NOOKX2/e-commerce-backend/pkg/cursor"
 	"gorm.io/gorm"
 )
 
 type ProductRepositoryInterface interface {
 	Create(ctx context.Context, product *models.Product) error
-	GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, int64, error)
+	GetAllProduct(category string, price string, sort string, limit uint, afterCursor, beforeCursor string) ([]models.Product, int64, string, string, error)
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	GetActiveProductBySlug(ctx context.Context, slug string) (*models.Product, error)
@@ -22,7 +23,7 @@ type ProductRepositoryInterface interface {
 	GetProductBySKU(ctx context.Context, sku string) (*models.Product, error)
 	AddToStock(ctx context.Context, id uint, amount uint) error
 	RemoveFromStock(ctx context.Context, id uint, amount uint) error
-	GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, int64, error)
+	GetProductsBySellerID(ctx context.Context, sellerID uint, limit int, search string, afterCursor, beforeCursor string) ([]models.Product, int64, string, string, error)
 	GetOrCreateCategory(ctx context.Context, name string, slug string) (uint, error)
 	GetAllCategories(ctx context.Context) ([]models.Category, error)
 	GetProductByNormalizedName(ctx context.Context, sellerID uint, normalizedName string) (*models.Product, error)
@@ -43,11 +44,7 @@ func (r *productRepository) Create(ctx context.Context, product *models.Product)
 	return result.Error
 }
 
-func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, offset uint) ([]models.Product, int64, error) {
-	var total int64
-	products := make([]models.Product, 0)
-	query := r.db.Model(&models.Product{})
-
+func (r *productRepository) applyProductListFilters(q *gorm.DB, category, price string) *gorm.DB {
 	if category != "" {
 		parts := strings.Split(category, ",")
 		ids := make([]uint, 0, len(parts))
@@ -61,46 +58,109 @@ func (r *productRepository) GetAllProduct(category string, price string, sort st
 			}
 		}
 		if len(ids) > 0 {
-			query = query.Where("category_id IN ?", ids)
+			q = q.Where("category_id IN ?", ids)
 		}
 	}
-
 	if price != "" {
 		prices := strings.Split(price, ",")
 		if len(prices) == 2 {
 			minPrice, errMin := strconv.Atoi(prices[0])
 			maxPrice, errMax := strconv.Atoi(prices[1])
 			if errMin == nil && errMax == nil {
-				query = query.Where("price BETWEEN ? AND ?", minPrice, maxPrice)
+				q = q.Where("price BETWEEN ? AND ?", minPrice, maxPrice)
 			}
 		}
 	}
+	return q
+}
 
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
+func encodeProductListCursor(p models.Product, sortKey, fp string) (string, error) {
+	c := cursor.ProductListCursor{
+		ID:    p.ID,
+		CA:    p.CreatedAt.UnixMilli(),
+		Price: p.Price,
+		Sort:  sortKey,
+		FP:    fp,
+	}
+	return cursor.Encode(&c)
+}
+
+func reverseProductsInPlace(products []models.Product) {
+	for i, j := 0, len(products)-1; i < j; i, j = i+1, j-1 {
+		products[i], products[j] = products[j], products[i]
+	}
+}
+
+// GetAllProduct uses keyset pagination. Pass empty afterCursor and beforeCursor for the first page.
+func (r *productRepository) GetAllProduct(category string, price string, sort string, limit uint, afterCursor, beforeCursor string) ([]models.Product, int64, string, string, error) {
+	sortKey := cursor.NormalizeProductSort(sort)
+	fp := cursor.ProductFilterFP(category, price)
+	if limit < 1 {
+		limit = 12
+	}
+	fetch := int(limit) + 1
+
+	base := r.db.Model(&models.Product{}).Where("status = ?", models.StatusActive)
+	base = r.applyProductListFilters(base, category, price)
+
+	var total int64
+	if err := base.Count(&total).Error; err != nil {
+		return nil, 0, "", "", err
 	}
 
-	if sort != "" {
-		sortParts := strings.Split(sort, "_")
-		if len(sortParts) == 2 {
-			column := sortParts[0]
-			direction := sortParts[1]
+	var products []models.Product
 
-			if (column == "price" || column == "created_at") && (direction == "asc" || direction == "desc") {
-				query = query.Order(column + " " + direction)
-			}
+	mode, anchor := resolveProductListPaging(beforeCursor, afterCursor, sortKey, fp)
+
+	q := r.db.Model(&models.Product{}).Where("status = ?", models.StatusActive)
+	q = r.applyProductListFilters(q, category, price)
+
+	axis, desc := parseProductSortKey(sortKey)
+	switch mode {
+	case productPagingBackward:
+		q = productListSeekBefore(q, axis, desc, anchor)
+		q = productListOrderBackward(q, axis, desc)
+	case productPagingForward:
+		q = productListSeekAfter(q, axis, desc, anchor)
+		q = productListOrderForward(q, axis, desc)
+	default:
+		q = productListOrderForward(q, axis, desc)
+	}
+
+	q = q.Preload("Category").Limit(fetch)
+	if err := q.Find(&products).Error; err != nil {
+		return nil, 0, "", "", err
+	}
+
+	if mode == productPagingBackward {
+		reverseProductsInPlace(products)
+	}
+
+	hasExtra := len(products) > int(limit)
+	if hasExtra {
+		products = products[:limit]
+	}
+
+	var nextC, prevC string
+	if len(products) == 0 {
+		return products, total, "", "", nil
+	}
+
+	first := products[0]
+	last := products[len(products)-1]
+
+	hasPrev := strings.TrimSpace(afterCursor) != "" || (mode == productPagingBackward && hasExtra)
+	if hasPrev {
+		if enc, err := encodeProductListCursor(first, sortKey, fp); err == nil {
+			prevC = enc
 		}
-	} else {
-		query = query.Order("created_at desc")
 	}
-
-	query = query.Limit(int(limit)).Offset(int(offset))
-	query = query.Preload("Category")
-
-	if err := query.Where("status = ?", "active").Find(&products).Error; err != nil {
-		return nil, 0, err
+	if hasExtra {
+		if enc, err := encodeProductListCursor(last, sortKey, fp); err == nil {
+			nextC = enc
+		}
 	}
-	return products, total, nil
+	return products, total, nextC, prevC, nil
 }
 
 func (r *productRepository) GetProductByID(ctx context.Context, id uint) (*models.Product, error) {
@@ -200,38 +260,78 @@ func (r *productRepository) RemoveFromStock(ctx context.Context, id uint, amount
 	return nil
 }
 
-func (r *productRepository) GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, int64, error) {
-    var products []models.Product
-    var total int64
-    offset := (page - 1) * limit
+func encodeSellerProductCursor(p models.Product, fp string) (string, error) {
+	c := cursor.SellerProductCursor{
+		ID: p.ID,
+		CA: p.CreatedAt.UnixMilli(),
+		FP: fp,
+	}
+	return cursor.Encode(&c)
+}
 
-    baseQuery := r.db.WithContext(ctx).Model(&models.Product{}).
-        Joins("LEFT JOIN categories ON categories.id = products.category_id").
-        Where("products.seller_id = ?", sellerID)
+func (r *productRepository) GetProductsBySellerID(ctx context.Context, sellerID uint, limit int, search string, afterCursor, beforeCursor string) ([]models.Product, int64, string, string, error) {
+	fp := cursor.SellerListFP(sellerID, search)
+	if limit < 1 {
+		limit = 10
+	}
+	fetch := limit + 1
 
-    if search != "" {
-        searchTerm := "%" + strings.ToLower(search) + "%"
-    
-        baseQuery = baseQuery.Where("(LOWER(products.name) LIKE ? OR LOWER(categories.name) LIKE ?)", searchTerm, searchTerm)
-    }
+	baseCount := r.sellerProductsBaseQuery(ctx, sellerID, search)
+	var total int64
+	if err := baseCount.Count(&total).Error; err != nil {
+		return nil, 0, "", "", err
+	}
 
-   
-    if err := baseQuery.Count(&total).Error; err != nil {
-        return nil, 0, err
-    }
+	var products []models.Product
 
- 
-    err := baseQuery.Preload("Category").
-        Order("products.created_at DESC").
-        Limit(limit).
-        Offset(offset).
-        Find(&products).Error
+	mode, anchor := resolveSellerListPaging(beforeCursor, afterCursor, fp)
 
-    if err != nil {
-        return nil, 0, err
-    }
+	q := r.sellerProductsBaseQuery(ctx, sellerID, search)
+	switch mode {
+	case sellerPagingBackward:
+		q = sellerSeekAfterNewerThanAnchor(q, anchor)
+		q = sellerOrderOldestFirst(q)
+	case sellerPagingForward:
+		q = sellerSeekBeforeOlderThanAnchor(q, anchor)
+		q = sellerOrderNewestFirst(q)
+	default:
+		q = sellerOrderNewestFirst(q)
+	}
 
-    return products, total, nil
+	if err := q.Preload("Category").Limit(fetch).Find(&products).Error; err != nil {
+		return nil, 0, "", "", err
+	}
+
+	if mode == sellerPagingBackward {
+		reverseProductsInPlace(products)
+	}
+
+	hasExtra := len(products) > limit
+	if hasExtra {
+		products = products[:limit]
+	}
+
+	if len(products) == 0 {
+		return products, total, "", "", nil
+	}
+
+	first := products[0]
+	last := products[len(products)-1]
+
+	var nextC, prevC string
+	hasPrev := strings.TrimSpace(afterCursor) != "" || (mode == sellerPagingBackward && hasExtra)
+	if hasPrev {
+		if enc, err := encodeSellerProductCursor(first, fp); err == nil {
+			prevC = enc
+		}
+	}
+	if hasExtra {
+		if enc, err := encodeSellerProductCursor(last, fp); err == nil {
+			nextC = enc
+		}
+	}
+
+	return products, total, nextC, prevC, nil
 }
 
 func (r *productRepository) GetOrCreateCategory(ctx context.Context, name string, slug string) (uint, error) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"time"
 
@@ -31,7 +30,7 @@ type CreateProductInput struct {
 
 type ProductServiceInterface interface {
 	AddProduct(ctx context.Context, input CreateProductInput) (*models.Product, error)
-	GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, int64, error)
+	GetAllProduct(category, price, sort, limitStr, afterCursor, beforeCursor string) ([]models.Product, int64, string, string, error)
 	GetProductByID(ctx context.Context, id uint) (*models.Product, error)
 	GetProductBySlug(ctx context.Context, slug string) (*models.Product, error)
 	GetProductBySlugForSeller(ctx context.Context, slug string, sellerID uint) (*models.Product, error)
@@ -39,22 +38,20 @@ type ProductServiceInterface interface {
 	DeleteProduct(ctx context.Context, sku string, sellerID uint) error
 	AddToStock(ctx context.Context, id uint, amount uint) error
 	RemoveFromStock(ctx context.Context, id uint, amount uint) error
-	GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, map[string]interface{}, error)
+	GetProductsBySellerID(ctx context.Context, sellerID uint, limit int, search, afterCursor, beforeCursor string) ([]models.Product, map[string]interface{}, error)
 	GetAllCategories(ctx context.Context) ([]models.Category, error)
 	UpdateProductBySKU(ctx context.Context, sellerID uint, sku string, req request.UpdateProductRequest) (*models.Product, error)
 }
 
 type ProductService struct {
-	repo           repository.ProductRepositoryInterface
-	uploadService  UploadService
-	settingsRepo   repository.SettingsRepositoryInterface
+	repo          repository.ProductRepositoryInterface
+	uploadService UploadService
 }
 
-func NewProductService(repo repository.ProductRepositoryInterface, uploadService UploadService, settingsRepo repository.SettingsRepositoryInterface) *ProductService {
+func NewProductService(repo repository.ProductRepositoryInterface, uploadService UploadService) *ProductService {
 	return &ProductService{
 		repo:          repo,
 		uploadService: uploadService,
-		settingsRepo:  settingsRepo,
 	}
 }
 
@@ -146,13 +143,6 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		return nil, err
 	}
 
-	status := models.StatusActive
-	if manual, err := s.settingsRepo.IsManualProductApprovalEnabled(ctx); err == nil && manual {
-		status = models.StatusPending
-	} else if err != nil {
-		return nil, fmt.Errorf("platform settings: %w", err)
-	}
-
 	product := &models.Product{
 		Name:           input.Name,
 		NormalizedName: normalizedName,
@@ -166,7 +156,7 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 		Quantity:       input.Quantity,
 		CostPrice:      input.CostPrice,
 		ImageHash:      input.ImageHash,
-		Status:         status,
+		Status:         models.StatusActive,
 	}
 	if err := s.repo.Create(ctx, product); err != nil {
 		return nil, err
@@ -186,25 +176,18 @@ func (s *ProductService) AddProduct(ctx context.Context, input CreateProductInpu
 	return product, err
 }
 
-func (s *ProductService) GetAllProduct(category, price, sort, pageStr, limitStr string) ([]models.Product, int64, error) {
-	page, err := strconv.ParseUint(pageStr, 10, 64)
-	if err != nil || page < 1 {
-		page = 1
-	}
-
+func (s *ProductService) GetAllProduct(category, price, sort, limitStr, afterCursor, beforeCursor string) ([]models.Product, int64, string, string, error) {
 	limit, err := strconv.ParseUint(limitStr, 10, 64)
 	if err != nil || limit < 1 {
 		limit = 12
 	}
 
-	offset := (page - 1) * limit
-
-	products, total, err := s.repo.GetAllProduct(category, price, sort, uint(limit), uint(offset))
+	products, total, nextC, prevC, err := s.repo.GetAllProduct(category, price, sort, uint(limit), afterCursor, beforeCursor)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, "", "", err
 	}
 
-	return products, total, nil
+	return products, total, nextC, prevC, nil
 
 }
 
@@ -300,18 +283,22 @@ func (s *ProductService) RemoveFromStock(ctx context.Context, id uint, amount ui
 	return s.repo.RemoveFromStock(ctx, id, amount)
 }
 
-func (s *ProductService) GetProductsBySellerID(ctx context.Context, sellerID uint, page, limit int, search string) ([]models.Product, map[string]interface{}, error) {
-	products, total, err := s.repo.GetProductsBySellerID(ctx, sellerID, page, limit, search)
+func (s *ProductService) GetProductsBySellerID(ctx context.Context, sellerID uint, limit int, search, afterCursor, beforeCursor string) ([]models.Product, map[string]interface{}, error) {
+	if limit < 1 {
+		limit = 10
+	}
+	products, total, nextC, prevC, err := s.repo.GetProductsBySellerID(ctx, sellerID, limit, search, afterCursor, beforeCursor)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	totalPages := int(math.Ceil(float64(total) / float64(limit)))
-
 	meta := map[string]interface{}{
-		"total_pages":  totalPages,
-		"current_page": page,
 		"total_items":  total,
+		"limit":        limit,
+		"next_cursor":  nextC,
+		"prev_cursor":  prevC,
+		"has_next":     nextC != "",
+		"has_prev":     prevC != "",
 	}
 
 	if products == nil {
@@ -335,7 +322,10 @@ func (s *ProductService) UpdateProductBySKU(ctx context.Context, sellerID uint, 
 		return nil, errors.New("unauthorized: you don't own this product")
 	}
 
-	category, err := s.repo.GetCategoryBySlug(ctx, req.Category)
+	// req.Category from client might be a display name (e.g. "mobile phone")
+	// but repository expects `categories.slug`. Normalize it before lookup.
+	categorySlug := utils.Slugify(req.Category)
+	category, err := s.repo.GetCategoryBySlug(ctx, categorySlug)
 	if err != nil {
 		return nil, fmt.Errorf("invalid category: %s", req.Category)
 	}
